@@ -21,6 +21,7 @@
     .btn-save { background: #188038; }
     .btn-secondary { background: #5f6368; }
     .btn-export { background: #0b57d0; }
+    .btn-mail { background: #137333; }
     .btn-row { display: flex; gap: 8px; margin: 6px 0; }
     .btn-row button { flex: 1; margin: 0; font-size: 14px; padding: 11px 8px; }
     .toggle-row { display: flex; align-items: center; justify-content: space-between; background: #f1f3f4; padding: 10px 12px; border-radius: 8px; margin: 8px 0; font-size: 14px; }
@@ -30,26 +31,19 @@
     .preview-img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; margin-top: 8px; border: 1px solid #dadce0; }
     .hidden { display: none !important; }
 
-    /* กรอบกล้องพร้อมเส้นเล็งสแกนและแถบซูม */
+    /* กรอบกล้องพร้อมเส้นเล็งสีแดงนิ่ง (ไม่ขยับ) */
     .scanner-wrapper { position: relative; width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; background: #000; }
     #videoPreview { width: 100%; max-height: 320px; object-fit: cover; display: block; background: #000; }
     .scan-overlay { position: absolute; inset: 0; pointer-events: none; display: flex; align-items: center; justify-content: center; }
-    .scan-frame { position: relative; width: 84%; max-width: 350px; height: 155px; border: 2px solid rgba(255, 255, 255, 0.8); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35); overflow: hidden; }
+    .scan-frame { position: relative; width: 84%; max-width: 350px; height: 155px; border: 2px solid rgba(255, 255, 255, 0.85); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35); overflow: hidden; }
     .scan-frame.detected { border-color: #00e676; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35), 0 0 18px rgba(0, 230, 118, 0.85); }
     .scan-corner { position: absolute; width: 22px; height: 22px; border-color: #00e676; border-style: solid; }
     .c-tl { top: -2px; left: -2px; border-width: 4px 0 0 4px; border-top-left-radius: 12px; }
     .c-tr { top: -2px; right: -2px; border-width: 4px 4px 0 0; border-top-right-radius: 12px; }
     .c-bl { bottom: -2px; left: -2px; border-width: 0 0 4px 4px; border-bottom-left-radius: 12px; }
     .c-br { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-bottom-right-radius: 12px; }
-    .scan-laser { position: absolute; left: 6%; right: 6%; height: 2px; background: #ff1744; box-shadow: 0 0 8px #ff1744, 0 0 14px #ff5252; animation: laserMove 1.6s ease-in-out infinite; }
+    .scan-laser-static { position: absolute; top: 50%; left: 6%; right: 6%; height: 2px; transform: translateY(-50%); background: #ff1744; box-shadow: 0 0 8px #ff1744; }
     .scan-hint-badge { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.68); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
-    .zoom-bar { position: relative; background: #1c1e21; color: #fff; padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 13px; }
-    .zoom-bar input[type="range"] { flex: 1; margin: 0; padding: 0; accent-color: #00e676; height: 24px; }
-    .zoom-btn { width: auto; margin: 0; padding: 5px 12px; font-size: 13px; border-radius: 6px; background: #3c4043; }
-    @keyframes laserMove {
-      0%, 100% { top: 14%; }
-      50% { top: 84%; }
-    }
 
     #msg { text-align: center; font-weight: bold; margin-top: 8px; font-size: 14px; }
     .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
@@ -66,6 +60,8 @@
     .b-green { background: #e6f4ea; color: #137333; }
     .b-amber { background: #fef7e0; color: #b06000; }
     .b-red { background: #fce8e6; color: #c5221f; }
+    .mail-box { background: #f8f9fa; border: 1px solid #dadce0; border-radius: 10px; padding: 12px; margin-top: 12px; }
+    .helper-note { font-size: 12px; color: #5f6368; margin-top: 4px; line-height: 1.45; }
   </style>
 </head>
 <body>
@@ -96,16 +92,9 @@
             <div class="scan-corner c-tr"></div>
             <div class="scan-corner c-bl"></div>
             <div class="scan-corner c-br"></div>
-            <div class="scan-laser"></div>
+            <div class="scan-laser-static"></div>
           </div>
-          <div id="scanBadge" class="scan-hint-badge">ZXing Auto-Scan: เล็งบาร์โค้ด / QR ตรงเส้นแดง</div>
-        </div>
-        <div class="zoom-bar">
-          <span>ซูม</span>
-          <button type="button" class="zoom-btn" onclick="stepZoom(-0.5)">-</button>
-          <input id="zoomSlider" type="range" min="1" max="3" step="0.1" value="1" oninput="onZoomSlider(this.value)">
-          <button type="button" class="zoom-btn" onclick="stepZoom(0.5)">+</button>
-          <span id="zoomLabel">1.0x</span>
+          <div id="scanBadge" class="scan-hint-badge">เล็งบาร์โค้ด / QR ตรงเส้นสีแดง</div>
         </div>
       </div>
 
@@ -188,6 +177,20 @@
         <button type="button" class="btn-stop" onclick="clearAllData()">🗑️ ล้างข้อมูลทั้งหมด</button>
       </div>
       <input type="file" id="importJsonInput" accept="application/json" class="hidden" onchange="handleImportJSON(event)">
+
+      <div class="mail-box">
+        <h3 style="margin-bottom:6px;">✉️ ส่งอีเมลรายงานพร้อมแนบ CSV</h3>
+        <label style="margin-top:0;">อีเมลผู้รับ:</label>
+        <input type="email" id="mailTo" placeholder="เช่น manager@company.com">
+
+        <label>หัวข้ออีเมล:</label>
+        <input type="text" id="mailSubject" value="รายงานผลการตรวจนับ Fixed Assets (CSV)">
+
+        <button type="button" class="btn-mail" onclick="sendReportEmailWithCSV()">📤 ดาวน์โหลด CSV และเปิดแอปเมล</button>
+        <div class="helper-note">
+          เนื่องจากเบราว์เซอร์บนมือถือ/เว็บไม่อนุญาตให้สคริปต์แนบไฟล์เข้าแอปเมลโดยตรง ระบบจะสร้างและดาวน์โหลดไฟล์ <code>fixed_assets_report.csv</code> ให้ก่อน แล้วเปิดแอปอีเมลพร้อมสรุปยอดให้อัตโนมัติ จากนั้นกดแนบไฟล์ CSV ที่ดาวน์โหลดไว้ได้เลยครับ
+        </div>
+      </div>
     </div>
 
     <div class="card">
@@ -205,7 +208,6 @@
     let isBusy = false;
     let isHandlingScan = false;
     let currentPhotoDataUrl = '';
-    let zoomCaps = { min: 1, max: 3, step: 0.1, current: 1 };
     let focusTimer = null;
 
     function ensureZxingLoaded() {
@@ -213,7 +215,7 @@
         setMsg('#d93025', 'โหลดไลบรารี @zxing/library ไม่สำเร็จ');
         showCamError('Library Load', {
           name: 'ZxingNotLoaded',
-          message: 'ไม่สามารถโหลด @zxing/library จาก unpkg.com ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือรีเฟรชหน้าเว็บ'
+          message: 'ไม่สามารถโหลด @zxing/library ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือรีเฟรชหน้าเว็บ'
         });
         return false;
       }
@@ -302,18 +304,9 @@
         }
       }
 
-      const slider = document.getElementById('zoomSlider');
-      const label = document.getElementById('zoomLabel');
-      zoomCaps = { min: 1, max: 3, step: 0.1, current: 1 };
-
       if (activeTrack && typeof activeTrack.getCapabilities === 'function') {
         try {
           const caps = activeTrack.getCapabilities();
-          if (caps && typeof caps.zoom === 'object' && caps.zoom !== null) {
-            zoomCaps.min = caps.zoom.min || 1;
-            zoomCaps.max = Math.min(caps.zoom.max || 3, 5);
-            zoomCaps.step = caps.zoom.step || 0.1;
-          }
           const constraints = { width: { ideal: 1280 }, height: { ideal: 720 } };
           if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
             constraints.focusMode = 'continuous';
@@ -322,38 +315,12 @@
         } catch (e) {}
       }
 
-      slider.min = zoomCaps.min;
-      slider.max = zoomCaps.max;
-      slider.step = zoomCaps.step;
-      slider.value = zoomCaps.min;
-      zoomCaps.current = Number(zoomCaps.min);
-      label.innerText = zoomCaps.current.toFixed(1) + 'x';
-
       if (focusTimer) clearInterval(focusTimer);
       focusTimer = setInterval(() => {
         if (isScanning && !isHandlingScan && activeTrack) {
           applyAutoFocus(activeTrack);
         }
       }, 1800);
-    }
-
-    function applyZoomValue(val) {
-      const clamped = Math.max(zoomCaps.min, Math.min(zoomCaps.max, Number(val)));
-      zoomCaps.current = clamped;
-      document.getElementById('zoomSlider').value = clamped;
-      document.getElementById('zoomLabel').innerText = clamped.toFixed(1) + 'x';
-
-      if (activeTrack && typeof activeTrack.applyConstraints === 'function') {
-        activeTrack.applyConstraints({ advanced: [{ zoom: clamped }] }).catch(() => {});
-      }
-    }
-
-    function onZoomSlider(val) {
-      applyZoomValue(val);
-    }
-
-    function stepZoom(delta) {
-      applyZoomValue(zoomCaps.current + delta);
     }
 
     function flashDetectedState(codeText) {
@@ -410,7 +377,6 @@
         wrapperEl.classList.remove('hidden');
         isHandlingScan = false;
 
-        // บังคับใช้กล้องหลังเท่านั้นผ่าน MediaDevices.getUserMedia
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { exact: 'environment' },
@@ -437,16 +403,16 @@
         btnCam.className = 'btn-stop';
         setMsg('#5f6368', 'กำลังตรวจจับ Barcode / QR อัตโนมัติ...');
 
-        codeReader.decodeFromStream(mediaStream, 'videoPreview', async (result, err) => {
+        codeReader.decodeFromStream(mediaStream, 'videoPreview', async (result) => {
           if (!isScanning || isHandlingScan) return;
           if (result && result.getText) {
             isHandlingScan = true;
             const cleanCode = result.getText().trim();
             flashDetectedState(cleanCode);
             document.getElementById('searchId').value = cleanCode;
-            await new Promise(r => setTimeout(r, 180));
+            await new Promise(r => setTimeout(r, 150));
             await stopScanner();
-            searchAsset();
+            openScannedAssetInNewPage(cleanCode);
           }
         });
       } catch (err) {
@@ -476,6 +442,18 @@
       } finally {
         btnCam.disabled = false;
         isBusy = false;
+      }
+    }
+
+    function openScannedAssetInNewPage(code) {
+      const targetUrl = new URL(window.location.href);
+      targetUrl.searchParams.set('asset', code);
+      const win = window.open(targetUrl.toString(), '_blank', 'noopener,noreferrer');
+      if (!win) {
+        // หากเบราว์เซอร์บล็อก popup ให้เปิดในหน้าปัจจุบันแทน
+        window.location.href = targetUrl.toString();
+      } else {
+        setMsg('#188038', 'เปิดหน้าใหม่สำหรับรหัส: ' + code);
       }
     }
 
@@ -626,7 +604,7 @@
       }).join('');
     }
 
-    function exportCSV() {
+    function buildCSVContent() {
       const list = loadAssets();
       const headers = ['Asset ID', 'Name', 'Location', 'Owner', 'Status', 'Checker', 'Note', 'Last Checked'];
       const rows = list.map(r => [
@@ -634,8 +612,42 @@
       ].map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(','));
 
       const bom = '\uFEFF';
-      const csv = bom + [headers.join(','), ...rows].join('\r\n');
+      return bom + [headers.join(','), ...rows].join('\r\n');
+    }
+
+    function exportCSV() {
+      const csv = buildCSVContent();
       downloadBlob(csv, 'fixed_assets_report.csv', 'text/csv;charset=utf-8;');
+    }
+
+    function sendReportEmailWithCSV() {
+      const list = loadAssets();
+      const total = list.length;
+      const normal = list.filter(x => x.status === 'ปกติ').length;
+      const damaged = list.filter(x => x.status === 'ชำรุด').length;
+      const missing = list.filter(x => x.status === 'ไม่พบ').length;
+
+      // ดาวน์โหลดไฟล์ CSV เตรียมไว้ให้ผู้ใช้นำไปแนบในอีเมล
+      exportCSV();
+
+      const to = document.getElementById('mailTo').value.trim();
+      const subject = document.getElementById('mailSubject').value.trim() || 'รายงานผลการตรวจนับ Fixed Assets (CSV)';
+      const bodyLines = [
+        'รายงานสรุปผลการตรวจนับ Fixed Assets',
+        'วันที่: ' + new Date().toLocaleString('th-TH'),
+        '----------------------------------------',
+        'ทรัพย์สินทั้งหมด: ' + total + ' รายการ',
+        'ปกติ: ' + normal + ' | ชำรุด: ' + damaged + ' | ไม่พบ: ' + missing,
+        '----------------------------------------',
+        'กรุณาแนบไฟล์ fixed_assets_report.csv ที่ดาวน์โหลดอัตโนมัติจากเครื่องนี้ครับ'
+      ];
+
+      const mailtoLink =
+        'mailto:' + encodeURIComponent(to) +
+        '?subject=' + encodeURIComponent(subject) +
+        '&body=' + encodeURIComponent(bodyLines.join('\n'));
+
+      window.location.href = mailtoLink;
     }
 
     function exportJSON() {
@@ -694,6 +706,16 @@
       el.style.color = color;
       el.innerText = text;
     }
+
+    // หากเปิดหน้าใหม่พร้อมพารามิเตอร์ ?asset=รหัส ให้ค้นหาและแสดงฟอร์มทันที
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const assetParam = params.get('asset');
+      if (assetParam && assetParam.trim()) {
+        document.getElementById('searchId').value = assetParam.trim();
+        searchAsset();
+      }
+    });
   </script>
 </body>
 </html>
