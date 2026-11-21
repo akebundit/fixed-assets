@@ -331,10 +331,19 @@
             zoomCaps.max = Math.min(caps.zoom.max || 3, 5);
             zoomCaps.step = caps.zoom.step || 0.1;
           }
-          // เปิดโหมด Continuous Focus อัตโนมัติหากอุปกรณ์รองรับ
+          // ขอความละเอียด HD และเปิดโหมด Continuous Focus อัตโนมัติหากอุปกรณ์รองรับ
+          const trackConstraints = {
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          };
           if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
-            activeTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+            trackConstraints.focusMode = 'continuous';
           }
+          activeTrack.applyConstraints(trackConstraints).catch(() => {
+            if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
+              activeTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+            }
+          });
         } catch (e) {}
       }
 
@@ -459,14 +468,10 @@
           searchAsset();
         };
 
-        // บังคับใช้กล้องหลังเท่านั้น พร้อมความละเอียด HD และโฟกัสต่อเนื่องเพื่อการตรวจจับที่ไวและแม่นยำ
+        // html5-qrcode กำหนดให้พารามิเตอร์ตัวแรกเป็น object ที่มี key เดียว (เช่น { facingMode: 'environment' })
+        // ส่วนความละเอียดและโฟกัสให้ปรับผ่าน videoConstraints และ applyConstraints หลังเปิดกล้อง
         await html5QrCode.start(
-          {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            focusMode: { ideal: 'continuous' }
-          },
+          { facingMode: 'environment' },
           {
             fps: 24,
             qrbox: qrboxFunction,
