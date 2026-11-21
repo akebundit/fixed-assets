@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Fixed Assets Inspection</title>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; padding: 14px; max-width: 540px; margin: auto; color: #202124; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .tab-btn { flex: 1; padding: 10px 8px; border-radius: 10px; border: 1px solid #dadce0; background: #fff; font-weight: bold; cursor: pointer; font-size: 14px; }
+    .tab-btn.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+    .card { background: #fff; padding: 18px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 14px; }
+    h2, h3 { margin-top: 0; }
+    h2 { color: #1a73e8; font-size: 20px; }
+    input, select, textarea, button { width: 100%; padding: 11px; margin: 7px 0; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
+    button { background: #1a73e8; color: #fff; border: none; font-weight: bold; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    button:disabled { background: #9aa0a6; cursor: not-allowed; }
+    .btn-scan { background: #007b83; }
+    .btn-stop { background: #d93025; }
+    .btn-save { background: #188038; }
+    .btn-secondary { background: #5f6368; }
+    .btn-export { background: #0b57d0; }
+    .btn-row { display: flex; gap: 8px; margin: 6px 0; }
+    .btn-row button { flex: 1; margin: 0; font-size: 14px; padding: 11px 8px; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; background: #f1f3f4; padding: 10px 12px; border-radius: 8px; margin: 8px 0; font-size: 14px; }
+    .toggle-row input[type="checkbox"] { width: auto; margin: 0; transform: scale(1.25); }
+    .info-row { margin: 5px 0; font-size: 14px; }
+    .err-detail { background: #fce8e6; border: 1px solid #f28b82; color: #a50e0e; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-top: 8px; text-align: left; word-break: break-word; }
+    .preview-img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; margin-top: 8px; border: 1px solid #dadce0; }
+    .hidden { display: none; }
+    #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-top: 8px; background: #000; }
+    #reader video { object-fit: cover !important; border-radius: 10px; }
+    #msg { text-align: center; font-weight: bold; margin-top: 8px; font-size: 14px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
+    .stat-box { background: #f8f9fa; border: 1px solid #e8eaed; border-radius: 10px; padding: 12px; text-align: center; }
+    .stat-num { font-size: 24px; font-weight: bold; margin-top: 4px; }
+    .stat-total { grid-column: span 2; background: #e8f0fe; border-color: #c2e7ff; }
+    .c-green { color: #188038; }
+    .c-amber { color: #b06000; }
+    .c-red { color: #d93025; }
+    .c-blue { color: #1a73e8; }
+    .list-item { border-bottom: 1px solid #eceff1; padding: 10px 0; font-size: 13px; }
+    .list-item:last-child { border-bottom: none; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: bold; }
+    .b-green { background: #e6f4ea; color: #137333; }
+    .b-amber { background: #fef7e0; color: #b06000; }
+    .b-red { background: #fce8e6; color: #c5221f; }
+    .b-gray { background: #f1f3f4; color: #5f6368; }
+  </style>
+</head>
+<body>
+
+  <div class="tabs">
+    <button id="tabScanBtn" class="tab-btn active" onclick="switchTab('scan')">📷 ตรวจนับ / สแกน</button>
+    <button id="tabDashBtn" class="tab-btn" onclick="switchTab('dash')">📊 สรุป &amp; ส่งออก</button>
+  </div>
+
+  <!-- แท็บ 1: ตรวจนับและสแกน -->
+  <div id="scanTab">
+    <div class="card">
+      <h2>🔍 ตรวจนับ Fixed Assets</h2>
+      <input type="text" id="searchId" placeholder="กรอก ยิงบาร์โค้ด หรือสแกน Asset ID" onkeydown="if(event.key==='Enter') searchAsset()">
+
+      <div class="toggle-row">
+        <span><strong>โหมดสแกนต่อเนื่อง</strong> (เปิดกล้องต่อหลังบันทึก)</span>
+        <input type="checkbox" id="continuousMode">
+      </div>
+
+      <div id="cameraSelectBox" class="hidden">
+        <select id="cameraSelect" onchange="onCameraChange()"></select>
+      </div>
+
+      <div class="btn-row">
+        <button id="btnToggleCam" type="button" class="btn-scan" onclick="toggleScanner()">📷 เปิดกล้องสแกนสด</button>
+        <button id="btnPhotoScan" type="button" class="btn-secondary" onclick="triggerScanFromImage()">🖼️ สแกนจากรูป</button>
+      </div>
+      <input type="file" id="qrImageInput" accept="image/*" capture="environment" class="hidden" onchange="handleScanFromImage(event)">
+
+      <div id="reader" class="hidden"></div>
+      <div id="fileReader" class="hidden"></div>
+
+      <button id="btnSearch" type="button" onclick="searchAsset()">ค้นหา / เพิ่มรหัสทรัพย์สิน</button>
+      <div id="msg"></div>
+      <div id="camErrorBox" class="err-detail hidden"></div>
+    </div>
+
+    <div id="resultCard" class="card hidden">
+      <h3 id="resTitle"></h3>
+      <div class="info-row"><strong>รหัส:</strong> <span id="resId"></span></div>
+
+      <label>ชื่อทรัพย์สิน:</label>
+      <input type="text" id="assetName" placeholder="เช่น Notebook Dell Latitude / Monitor">
+
+      <label>สถานที่:</label>
+      <input type="text" id="assetLoc" placeholder="เช่น Office / Line 1">
+
+      <label>ผู้รับผิดชอบ:</label>
+      <input type="text" id="assetOwner" placeholder="ชื่อผู้รับผิดชอบหรือแผนก">
+
+      <label>สถานะการตรวจ:</label>
+      <select id="status">
+        <option value="ปกติ">✅ ปกติ (พบทรัพย์สิน)</option>
+        <option value="ชำรุด">⚠️ ชำรุด / รอซ่อม</option>
+        <option value="ไม่พบ">❌ ไม่พบ / สูญหาย</option>
+      </select>
+
+      <label>ผู้ตรวจ:</label>
+      <input type="text" id="checker" placeholder="ชื่อผู้ตรวจ">
+
+      <label>หมายเหตุ:</label>
+      <textarea id="note" rows="2" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
+
+      <label>รูปภาพทรัพย์สิน:</label>
+      <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="handlePhotoChange(event)">
+      <img id="photoPreview" class="preview-img hidden" alt="ตัวอย่างรูปทรัพย์สิน">
+
+      <button id="btnSave" type="button" class="btn-save" onclick="saveAsset()">💾 บันทึกผลการตรวจ</button>
+    </div>
+  </div>
+
+  <!-- แท็บ 2: สรุปยอดและส่งออก -->
+  <div id="dashTab" class="hidden">
+    <div class="card">
+      <h2>📊 สรุปยอดตรวจนับ</h2>
+      <div class="stats-grid">
+        <div class="stat-box stat-total">
+          <div>ทรัพย์สินทั้งหมด</div>
+          <div id="dTotal" class="stat-num c-blue">0</div>
+        </div>
+        <div class="stat-box">
+          <div>ตรวจแล้ว</div>
+          <div id="dChecked" class="stat-num c-blue">0</div>
+        </div>
+        <div class="stat-box">
+          <div>ยังไม่ตรวจ</div>
+          <div id="dUnchecked" class="stat-num">0</div>
+        </div>
+        <div class="stat-box">
+          <div>✅ ปกติ</div>
+          <div id="dNormal" class="stat-num c-green">0</div>
+        </div>
+        <div class="stat-box">
+          <div>⚠️ ชำรุด</div>
+          <div id="dDamaged" class="stat-num c-amber">0</div>
+        </div>
+        <div class="stat-box">
+          <div>❌ ไม่พบ</div>
+          <div id="dMissing" class="stat-num c-red">0</div>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top:12px;">
+        <button type="button" class="btn-export" onclick="exportCSV()">⬇️ ดาวน์โหลด CSV</button>
+        <button type="button" class="btn-secondary" onclick="exportJSON()">⬇️ สำรองข้อมูล JSON</button>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn-secondary" onclick="triggerImportJSON()">⬆️ นำเข้า JSON</button>
+        <button type="button" class="btn-stop" onclick="clearAllData()">🗑️ ล้างข้อมูลทั้งหมด</button>
+      </div>
+      <input type="file" id="importJsonInput" accept="application/json" class="hidden" onchange="handleImportJSON(event)">
+    </div>
+
+    <div class="card">
+      <h3>📋 รายการทรัพย์สินล่าสุด</h3>
+      <div id="assetList"></div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'fixed_assets_standalone_v1';
+    let html5QrCode = null;
+    let fileQrCode = null;
+    let isScanning = false;
+    let isHandlingScan = false;
+    let currentPhotoDataUrl = '';
+
+    const SUPPORTED_FORMATS = [
+      Html5QrcodeSupportedFormats.QR_CODE,
+      Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.CODE_39,
+      Html5QrcodeSupportedFormats.CODE_93,
+      Html5QrcodeSupportedFormats.EAN_13,
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.ITF
+    ];
+
+    function loadAssets() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveAssetsList(list) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+
+    function switchTab(tab) {
+      const isScan = tab === 'scan';
+      document.getElementById('scanTab').classList.toggle('hidden', !isScan);
+      document.getElementById('dashTab').classList.toggle('hidden', isScan);
+      document.getElementById('tabScanBtn').classList.toggle('active', isScan);
+      document.getElementById('tabDashBtn').classList.toggle('active', !isScan);
+
+      if (!isScan && isScanning) {
+        stopScanner();
+      }
+      if (!isScan) {
+        renderDashboard();
+      }
+    }
+
+    function clearCamError() {
+      const box = document.getElementById('camErrorBox');
+      box.innerHTML = '';
+      box.classList.add('hidden');
+    }
+
+    function showCamError(stage, err) {
+      const box = document.getElementById('camErrorBox');
+      const errName = (err && err.name) ? err.name : 'Error';
+      const errMsg = (err && err.message) ? err.message : String(err || 'Unknown error');
+      let hint = '';
+
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        hint = '💡 เบราว์เซอร์จะอนุญาตกล้องสดเมื่อเปิดผ่าน <strong>HTTPS</strong> (หรือ localhost) เท่านั้น หากเปิดเป็นไฟล์ <code>file://</code> แนะนำเปิดผ่านเว็บเซิร์ฟเวอร์ HTTPS หรือใช้ปุ่ม <strong>🖼️ สแกนจากรูป</strong>';
+      } else if (errName === 'NotAllowedError') {
+        hint = '💡 กรุณาอนุญาตสิทธิ์การใช้กล้องใน Safari แล้วลองใหม่อีกครั้ง';
+      } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+        hint = '💡 ไม่พบกล้องบนอุปกรณ์นี้';
+      } else if (errName === 'NotReadableError') {
+        hint = '💡 กล้องถูกแอปอื่นใช้งานอยู่ ให้ปิดแอปอื่นแล้วลองใหม่';
+      }
+
+      box.innerHTML =
+        '<strong>รายละเอียด Error (' + stage + '):</strong><br>' +
+        '• ชนิด: <code>' + errName + '</code><br>' +
+        '• ข้อความ: <code>' + errMsg + '</code>' +
+        (hint ? '<br><div style="margin-top:6px;">' + hint + '</div>' : '');
+      box.classList.remove('hidden');
+    }
+
+    async function toggleScanner() {
+      if (isScanning) {
+        await stopScanner();
+      } else {
+        await startScanner();
+      }
+    }
+
+    async function loadCameraList() {
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (cameras && cameras.length > 0) {
+          const selectEl = document.getElementById('cameraSelect');
+          const prev = selectEl.value;
+          selectEl.innerHTML = '';
+          cameras.forEach((cam, idx) => {
+            const opt = document.createElement('option');
+            opt.value = cam.id;
+            opt.text = cam.label || ('กล้องตัวที่ ' + (idx + 1));
+            selectEl.appendChild(opt);
+          });
+          if (prev && cameras.some(c => c.id === prev)) {
+            selectEl.value = prev;
+          } else {
+            const backCam = cameras.find(c => /back|rear|environment|หลัง/i.test(c.label));
+            selectEl.value = backCam ? backCam.id : cameras[cameras.length - 1].id;
+          }
+          document.getElementById('cameraSelectBox').classList.remove('hidden');
+          return selectEl.value;
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    async function onCameraChange() {
+      if (isScanning) {
+        await stopScanner();
+        await startScanner(document.getElementById('cameraSelect').value);
+      }
+    }
+
+    async function startScanner(forcedCameraId) {
+      if (isScanning) return;
+      clearCamError();
+
+      const readerEl = document.getElementById('reader');
+      const btnCam = document.getElementById('btnToggleCam');
+      readerEl.classList.remove('hidden');
+      isHandlingScan = false;
+
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode('reader', {
+          verbose: false,
+          useBarCodeDetectorIfSupported: true,
+          formatsToSupport: SUPPORTED_FORMATS
+        });
+      }
+
+      const qrboxFunction = (viewfinderWidth, viewfinderHeight) => {
+        const width = Math.min(Math.floor(viewfinderWidth * 0.85), 340);
+        const height = Math.min(Math.floor(viewfinderHeight * 0.55), 160);
+        return { width: Math.max(width, 200), height: Math.max(height, 120) };
+      };
+
+      const onScanSuccess = async (decodedText) => {
+        if (isHandlingScan) return;
+        isHandlingScan = true;
+        const cleanCode = decodedText.trim();
+        document.getElementById('searchId').value = cleanCode;
+        await stopScanner();
+        searchAsset();
+      };
+
+      const selectedCamId = forcedCameraId || document.getElementById('cameraSelect').value || null;
+      const target = selectedCamId ? selectedCamId : { facingMode: 'environment' };
+
+      try {
+        await html5QrCode.start(
+          target,
+          { fps: 15, qrbox: qrboxFunction, aspectRatio: 1.333334, disableFlip: true },
+          onScanSuccess,
+          () => {}
+        );
+        isScanning = true;
+        btnCam.textContent = '⏹️ ปิดกล้องสแกน';
+        btnCam.className = 'btn-stop';
+        setMsg('#5f6368', 'วาง QR Code หรือ Barcode ให้อยู่ในกรอบ...');
+        await loadCameraList();
+      } catch (err) {
+        readerEl.classList.add('hidden');
+        setMsg('#d93025', 'ไม่สามารถเปิดกล้องสดได้');
+        showCamError('startScanner', err);
+      }
+    }
+
+    async function stopScanner() {
+      const readerEl = document.getElementById('reader');
+      const btnCam = document.getElementById('btnToggleCam');
+      if (html5QrCode && isScanning) {
+        try {
+          await html5QrCode.stop();
+          html5QrCode.clear();
+        } catch (e) {}
+      }
+      isScanning = false;
+      readerEl.classList.add('hidden');
+      btnCam.textContent = '📷 เปิดกล้องสแกนสด';
+      btnCam.className = 'btn-scan';
+    }
+
+    function triggerScanFromImage() {
+      clearCamError();
+      if (isScanning) stopScanner();
+      const input = document.getElementById('qrImageInput');
+      input.value = '';
+      input.click();
+    }
+
+    async function handleScanFromImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      clearCamError();
+      setMsg('#5f6368', 'กำลังอ่านโค้ดจากรูปภาพ...');
+
+      if (!fileQrCode) {
+        fileQrCode = new Html5Qrcode('fileReader', {
+          verbose: false,
+          useBarCodeDetectorIfSupported: true,
+          formatsToSupport: SUPPORTED_FORMATS
+        });
+      }
+
+      try {
+        const decodedText = await fileQrCode.scanFile(file, false);
+        document.getElementById('searchId').value = decodedText.trim();
+        setMsg('#188038', 'อ่านรหัสสำเร็จ: ' + decodedText.trim());
+        searchAsset();
+      } catch (err) {
+        setMsg('#d93025', 'ไม่พบโค้ดในรูปภาพนี้');
+        showCamError('scanFile', err);
+      }
+    }
+
+    function handlePhotoChange(event) {
+      const file = event.target.files[0];
+      if (!file) {
+        currentPhotoDataUrl = '';
+        document.getElementById('photoPreview').classList.add('hidden');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const maxW = 1024;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxW) {
+            h = Math.round((h * maxW) / w);
+            w = maxW;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          currentPhotoDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+          const preview = document.getElementById('photoPreview');
+          preview.src = currentPhotoDataUrl;
+          preview.classList.remove('hidden');
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function searchAsset() {
+      const id = document.getElementById('searchId').value.trim();
+      if (!id) {
+        setMsg('#d93025', 'กรุณากรอกหรือสแกน Asset ID ก่อน');
+        return;
+      }
+
+      const list = loadAssets();
+      const found = list.find(item => String(item.id).toLowerCase() === id.toLowerCase());
+
+      document.getElementById('resId').innerText = id;
+      currentPhotoDataUrl = '';
+      document.getElementById('photoInput').value = '';
+
+      if (found) {
+        document.getElementById('resTitle').innerText = '✏️ ข้อมูลทรัพย์สิน (พบในระบบ)';
+        document.getElementById('assetName').value = found.name || '';
+        document.getElementById('assetLoc').value = found.location || '';
+        document.getElementById('assetOwner').value = found.owner || '';
+        document.getElementById('status').value = found.status || 'ปกติ';
+        document.getElementById('checker').value = found.checker || '';
+        document.getElementById('note').value = found.note || '';
+        if (found.photo) {
+          currentPhotoDataUrl = found.photo;
+          const p = document.getElementById('photoPreview');
+          p.src = found.photo;
+          p.classList.remove('hidden');
+        } else {
+          document.getElementById('photoPreview').classList.add('hidden');
+        }
+        setMsg('#188038', 'พบข้อมูลรหัส ' + id);
+      } else {
+        document.getElementById('resTitle').innerText = '➕ เพิ่มและตรวจนับทรัพย์สินใหม่';
+        document.getElementById('assetName').value = '';
+        document.getElementById('assetLoc').value = '';
+        document.getElementById('assetOwner').value = '';
+        document.getElementById('status').value = 'ปกติ';
+        document.getElementById('note').value = '';
+        document.getElementById('photoPreview').classList.add('hidden');
+        setMsg('#1a73e8', 'ยังไม่พบรหัส ' + id + ' — กรอกข้อมูลและกดบันทึกได้เลย');
+      }
+
+      document.getElementById('resultCard').classList.remove('hidden');
+    }
+
+    function saveAsset() {
+      const id = document.getElementById('resId').innerText.trim();
+      if (!id) return;
+
+      const nowStr = new Date().toLocaleString('th-TH');
+      const record = {
+        id: id,
+        name: document.getElementById('assetName').value.trim(),
+        location: document.getElementById('assetLoc').value.trim(),
+        owner: document.getElementById('assetOwner').value.trim(),
+        status: document.getElementById('status').value,
+        checker: document.getElementById('checker').value.trim() || 'Staff',
+        note: document.getElementById('note').value.trim(),
+        photo: currentPhotoDataUrl,
+        lastChecked: nowStr
+      };
+
+      const list = loadAssets();
+      const idx = list.findIndex(item => String(item.id).toLowerCase() === id.toLowerCase());
+      if (idx >= 0) {
+        list[idx] = record;
+      } else {
+        list.unshift(record);
+      }
+      saveAssetsList(list);
+
+      setMsg('#188038', '✅ บันทึกข้อมูล ' + id + ' เรียบร้อย (' + nowStr + ')');
+      document.getElementById('resultCard').classList.add('hidden');
+      document.getElementById('searchId').value = '';
+
+      if (document.getElementById('continuousMode').checked) {
+        startScanner();
+      } else {
+        document.getElementById('searchId').focus();
+      }
+    }
+
+    function renderDashboard() {
+      const list = loadAssets();
+      const total = list.length;
+      const checked = list.filter(x => !!x.lastChecked).length;
+      const normal = list.filter(x => x.status === 'ปกติ').length;
+      const damaged = list.filter(x => x.status === 'ชำรุด').length;
+      const missing = list.filter(x => x.status === 'ไม่พบ').length;
+
+      document.getElementById('dTotal').innerText = total;
+      document.getElementById('dChecked').innerText = checked;
+      document.getElementById('dUnchecked').innerText = Math.max(0, total - checked);
+      document.getElementById('dNormal').innerText = normal;
+      document.getElementById('dDamaged').innerText = damaged;
+      document.getElementById('dMissing').innerText = missing;
+
+      const container = document.getElementById('assetList');
+      if (list.length === 0) {
+        container.innerHTML = '<div style="color:#5f6368; font-size:13px;">ยังไม่มีข้อมูลการตรวจนับ</div>';
+        return;
+      }
+
+      container.innerHTML = list.map(item => {
+        const badgeClass = item.status === 'ปกติ' ? 'b-green' : (item.status === 'ชำรุด' ? 'b-amber' : 'b-red');
+        return `
+          <div class="list-item">
+            <div><strong>${escapeHtml(item.id)}</strong> — ${escapeHtml(item.name || '-')} <span class="badge ${badgeClass}">${escapeHtml(item.status)}</span></div>
+            <div style="color:#5f6368; margin-top:3px;">สถานที่: ${escapeHtml(item.location || '-')} | ผู้ตรวจ: ${escapeHtml(item.checker || '-')} | ${escapeHtml(item.lastChecked || '-')}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function exportCSV() {
+      const list = loadAssets();
+      const headers = ['Asset ID', 'Name', 'Location', 'Owner', 'Status', 'Checker', 'Note', 'Last Checked'];
+      const rows = list.map(r => [
+        r.id, r.name, r.location, r.owner, r.status, r.checker, r.note, r.lastChecked
+      ].map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(','));
+
+      const bom = '﻿';
+      const csv = bom + [headers.join(','), ...rows].join('
+');
+      downloadBlob(csv, 'fixed_assets_report.csv', 'text/csv;charset=utf-8;');
+    }
+
+    function exportJSON() {
+      const json = JSON.stringify(loadAssets(), null, 2);
+      downloadBlob(json, 'fixed_assets_backup.json', 'application/json');
+    }
+
+    function triggerImportJSON() {
+      const inp = document.getElementById('importJsonInput');
+      inp.value = '';
+      inp.click();
+    }
+
+    function handleImportJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (!Array.isArray(parsed)) throw new Error('Invalid JSON format');
+          saveAssetsList(parsed);
+          renderDashboard();
+          alert('นำเข้าข้อมูลเรียบร้อยแล้ว');
+        } catch (err) {
+          alert('ไฟล์ JSON ไม่ถูกต้อง: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function clearAllData() {
+      if (!confirm('ยืนยันล้างข้อมูลการตรวจนับทั้งหมดบนเครื่องนี้?')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      renderDashboard();
+    }
+
+    function downloadBlob(content, filename, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    function setMsg(color, text) {
+      const el = document.getElementById('msg');
+      el.style.color = color;
+      el.innerText = text;
+    }
+  </script>
+</body>
+</html>
