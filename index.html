@@ -52,8 +52,8 @@
 <body>
 
   <div class="tabs">
-    <button id="tabScanBtn" class="tab-btn active" onclick="switchTab('scan')">📷 ตรวจนับ / สแกน</button>
-    <button id="tabDashBtn" class="tab-btn" onclick="switchTab('dash')">📊 สรุป &amp; ส่งออก</button>
+    <button id="tabScanBtn" type="button" class="tab-btn active" onclick="switchTab('scan')">📷 ตรวจนับ / สแกน</button>
+    <button id="tabDashBtn" type="button" class="tab-btn" onclick="switchTab('dash')">📊 สรุป &amp; ส่งออก</button>
   </div>
 
   <!-- แท็บ 1: ตรวจนับและสแกน -->
@@ -175,16 +175,35 @@
     let isHandlingScan = false;
     let currentPhotoDataUrl = '';
 
-    const SUPPORTED_FORMATS = [
-      Html5QrcodeSupportedFormats.QR_CODE,
-      Html5QrcodeSupportedFormats.CODE_128,
-      Html5QrcodeSupportedFormats.CODE_39,
-      Html5QrcodeSupportedFormats.CODE_93,
-      Html5QrcodeSupportedFormats.EAN_13,
-      Html5QrcodeSupportedFormats.EAN_8,
-      Html5QrcodeSupportedFormats.UPC_A,
-      Html5QrcodeSupportedFormats.ITF
-    ];
+    window.addEventListener('error', function(event) {
+      showCamError('Runtime Error', event.error || event.message || 'Unknown error');
+    });
+
+    function getSupportedFormats() {
+      if (typeof Html5QrcodeSupportedFormats === 'undefined') return undefined;
+      return [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_93,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.ITF
+      ];
+    }
+
+    function ensureScannerLoaded() {
+      if (typeof Html5Qrcode === 'undefined') {
+        setMsg('#d93025', 'โหลดไลบรารีสแกน (html5-qrcode) ไม่สำเร็จ');
+        showCamError('Library Load', {
+          name: 'LibraryNotLoaded',
+          message: 'ไม่สามารถโหลด html5-qrcode จาก unpkg.com ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือรีเฟรชหน้าเว็บ'
+        });
+        return false;
+      }
+      return true;
+    }
 
     function loadAssets() {
       try {
@@ -237,9 +256,9 @@
       }
 
       box.innerHTML =
-        '<strong>รายละเอียด Error (' + stage + '):</strong><br>' +
-        '• ชนิด: <code>' + errName + '</code><br>' +
-        '• ข้อความ: <code>' + errMsg + '</code>' +
+        '<strong>รายละเอียด Error (' + escapeHtml(stage) + '):</strong><br>' +
+        '• ชนิด: <code>' + escapeHtml(errName) + '</code><br>' +
+        '• ข้อความ: <code>' + escapeHtml(errMsg) + '</code>' +
         (hint ? '<br><div style="margin-top:6px;">' + hint + '</div>' : '');
       box.classList.remove('hidden');
     }
@@ -288,6 +307,7 @@
     async function startScanner(forcedCameraId) {
       if (isScanning) return;
       clearCamError();
+      if (!ensureScannerLoaded()) return;
 
       const readerEl = document.getElementById('reader');
       const btnCam = document.getElementById('btnToggleCam');
@@ -295,11 +315,10 @@
       isHandlingScan = false;
 
       if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode('reader', {
-          verbose: false,
-          useBarCodeDetectorIfSupported: true,
-          formatsToSupport: SUPPORTED_FORMATS
-        });
+        const cfg = { verbose: false, useBarCodeDetectorIfSupported: true };
+        const formats = getSupportedFormats();
+        if (formats) cfg.formatsToSupport = formats;
+        html5QrCode = new Html5Qrcode('reader', cfg);
       }
 
       const qrboxFunction = (viewfinderWidth, viewfinderHeight) => {
@@ -356,6 +375,7 @@
 
     function triggerScanFromImage() {
       clearCamError();
+      if (!ensureScannerLoaded()) return;
       if (isScanning) stopScanner();
       const input = document.getElementById('qrImageInput');
       input.value = '';
@@ -366,14 +386,14 @@
       const file = event.target.files[0];
       if (!file) return;
       clearCamError();
+      if (!ensureScannerLoaded()) return;
       setMsg('#5f6368', 'กำลังอ่านโค้ดจากรูปภาพ...');
 
       if (!fileQrCode) {
-        fileQrCode = new Html5Qrcode('fileReader', {
-          verbose: false,
-          useBarCodeDetectorIfSupported: true,
-          formatsToSupport: SUPPORTED_FORMATS
-        });
+        const cfg = { verbose: false, useBarCodeDetectorIfSupported: true };
+        const formats = getSupportedFormats();
+        if (formats) cfg.formatsToSupport = formats;
+        fileQrCode = new Html5Qrcode('fileReader', cfg);
       }
 
       try {
@@ -541,9 +561,8 @@
         r.id, r.name, r.location, r.owner, r.status, r.checker, r.note, r.lastChecked
       ].map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(','));
 
-      const bom = '﻿';
-      const csv = bom + [headers.join(','), ...rows].join('
-');
+      const bom = '\uFEFF';
+      const csv = bom + [headers.join(','), ...rows].join('\r\n');
       downloadBlob(csv, 'fixed_assets_report.csv', 'text/csv;charset=utf-8;');
     }
 
