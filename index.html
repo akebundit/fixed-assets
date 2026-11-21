@@ -7,13 +7,16 @@
   <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; padding: 14px; max-width: 540px; margin: auto; color: #202124; }
+    .top-bar { display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 10px 14px; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 12px; font-size: 13px; }
+    .top-bar button { width: auto; margin: 0; padding: 6px 12px; font-size: 12px; background: #5f6368; }
     .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-    .tab-btn { flex: 1; padding: 10px 8px; border-radius: 10px; border: 1px solid #dadce0; background: #fff; font-weight: bold; cursor: pointer; font-size: 14px; }
+    .tab-btn { flex: 1; padding: 10px 8px; border-radius: 10px; border: 1px solid #dadce0; background: #fff; font-weight: bold; cursor: pointer; font-size: 14px; color: #202124; }
     .tab-btn.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
     .card { background: #fff; padding: 18px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 14px; }
     h2, h3 { margin-top: 0; }
     h2 { color: #1a73e8; font-size: 20px; }
-    input, select, textarea, button { width: 100%; padding: 11px; margin: 7px 0; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-top: 6px; color: #3c4043; }
+    input, select, textarea, button { width: 100%; padding: 11px; margin: 5px 0 8px 0; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
     button { background: #1a73e8; color: #fff; border: none; font-weight: bold; cursor: pointer; -webkit-tap-highlight-color: transparent; }
     button:disabled { background: #9aa0a6; cursor: not-allowed; }
     .btn-scan { background: #007b83; }
@@ -22,6 +25,7 @@
     .btn-secondary { background: #5f6368; }
     .btn-export { background: #0b57d0; }
     .btn-mail { background: #137333; }
+    .btn-bt { background: #0066cc; }
     .btn-row { display: flex; gap: 8px; margin: 6px 0; }
     .btn-row button { flex: 1; margin: 0; font-size: 14px; padding: 11px 8px; }
     .toggle-row { display: flex; align-items: center; justify-content: space-between; background: #f1f3f4; padding: 10px 12px; border-radius: 8px; margin: 8px 0; font-size: 14px; }
@@ -45,7 +49,7 @@
     .scan-laser-static { position: absolute; top: 50%; left: 6%; right: 6%; height: 2px; transform: translateY(-50%); background: #ff1744; box-shadow: 0 0 8px #ff1744; }
     .scan-hint-badge { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.68); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
 
-    #msg { text-align: center; font-weight: bold; margin-top: 8px; font-size: 14px; }
+    #msg, #loginMsg, #btStatus { text-align: center; font-weight: bold; margin-top: 8px; font-size: 14px; }
     .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
     .stat-box { background: #f8f9fa; border: 1px solid #e8eaed; border-radius: 10px; padding: 12px; text-align: center; }
     .stat-num { font-size: 24px; font-weight: bold; margin-top: 4px; }
@@ -60,147 +64,220 @@
     .b-green { background: #e6f4ea; color: #137333; }
     .b-amber { background: #fef7e0; color: #b06000; }
     .b-red { background: #fce8e6; color: #c5221f; }
-    .mail-box { background: #f8f9fa; border: 1px solid #dadce0; border-radius: 10px; padding: 12px; margin-top: 12px; }
+    .sub-box { background: #f8f9fa; border: 1px solid #dadce0; border-radius: 10px; padding: 12px; margin-top: 12px; }
     .helper-note { font-size: 12px; color: #5f6368; margin-top: 4px; line-height: 1.45; }
+    .inline-add { display: flex; gap: 6px; align-items: center; }
+    .inline-add select, .inline-add input { flex: 1; margin: 4px 0; }
+    .inline-add button { width: auto; margin: 4px 0; padding: 11px 12px; font-size: 13px; white-space: nowrap; }
+    .login-card { margin-top: 32px; }
   </style>
 </head>
 <body>
 
-  <div class="tabs">
-    <button id="tabScanBtn" type="button" class="tab-btn active" onclick="switchTab('scan')">📷 ตรวจนับ / สแกน</button>
-    <button id="tabDashBtn" type="button" class="tab-btn" onclick="switchTab('dash')">📊 สรุป &amp; ส่งออก</button>
+  <!-- หน้าจอ Login -->
+  <div id="loginSection" class="card login-card">
+    <h2>🔐 เข้าสู่ระบบตรวจนับ Fixed Assets</h2>
+    <p class="helper-note" style="margin-bottom:10px;">กรุณากรอกรหัสพนักงาน / ชื่อผู้ตรวจ และรหัสผ่านเพื่อเข้าใช้งาน</p>
+    <label>ชื่อผู้ใช้งาน / รหัสพนักงาน:</label>
+    <input type="text" id="loginUser" placeholder="เช่น admin หรือ รหัสพนักงาน" autocomplete="username">
+
+    <label>รหัสผ่าน (PIN / Password):</label>
+    <input type="password" id="loginPass" placeholder="กรอกรหัสผ่าน (ค่าเริ่มต้น: 1234)" autocomplete="current-password" onkeydown="if(event.key==='Enter') handleLogin()">
+
+    <button type="button" onclick="handleLogin()">เข้าสู่ระบบ</button>
+    <div id="loginMsg"></div>
+    <div class="helper-note" style="margin-top:10px;">
+      • รหัสผ่านเริ่มต้น: <code>1234</code> (สามารถเปลี่ยนรหัสผ่านได้ในแท็บ <strong>สรุป &amp; ส่งออก</strong>)<br>
+      • ชื่อผู้ใช้งานที่ล็อกอินจะถูกใส่ในช่อง <strong>ผู้ตรวจ</strong> ให้อัตโนมัติ
+    </div>
   </div>
 
-  <!-- แท็บ 1: ตรวจนับและสแกน -->
-  <div id="scanTab">
-    <div class="card">
-      <h2>🔍 ตรวจนับ Fixed Assets</h2>
-      <input type="text" id="searchId" placeholder="กรอก ยิงบาร์โค้ด หรือสแกน Asset ID" onkeydown="if(event.key==='Enter') searchAsset()">
+  <!-- หน้าจอหลักหลัง Login -->
+  <div id="appSection" class="hidden">
+    <div class="top-bar">
+      <span>👤 ผู้ตรวจ: <strong id="currentUserBadge">-</strong></span>
+      <button type="button" onclick="handleLogout()">ออกจากระบบ</button>
+    </div>
 
-      <div class="toggle-row">
-        <span><strong>โหมดสแกนต่อเนื่อง</strong> (เปิดกล้องต่อหลังบันทึก)</span>
-        <input type="checkbox" id="continuousMode">
-      </div>
+    <div class="tabs">
+      <button id="tabScanBtn" type="button" class="tab-btn active" onclick="switchTab('scan')">📷 ตรวจนับ / สแกน</button>
+      <button id="tabDashBtn" type="button" class="tab-btn" onclick="switchTab('dash')">📊 สรุป &amp; ส่งออก</button>
+    </div>
 
-      <button id="btnToggleCam" type="button" class="btn-scan" onclick="toggleScanner()">📷 เปิดกล้องหลังสแกน</button>
+    <!-- แท็บ 1: ตรวจนับและสแกน -->
+    <div id="scanTab">
+      <div class="card">
+        <h2>🔍 ตรวจนับ Fixed Assets</h2>
+        <input type="text" id="searchId" placeholder="กรอก ยิงบาร์โค้ด หรือสแกน Asset ID" onkeydown="if(event.key==='Enter') searchAsset()">
 
-      <div id="scannerWrapper" class="scanner-wrapper hidden">
-        <video id="videoPreview" playsinline muted autoplay></video>
-        <div class="scan-overlay">
-          <div id="scanFrame" class="scan-frame">
-            <div class="scan-corner c-tl"></div>
-            <div class="scan-corner c-tr"></div>
-            <div class="scan-corner c-bl"></div>
-            <div class="scan-corner c-br"></div>
-            <div class="scan-laser-static"></div>
+        <div class="toggle-row">
+          <span><strong>โหมดสแกนต่อเนื่อง</strong> (เปิดกล้องต่อหลังบันทึก)</span>
+          <input type="checkbox" id="continuousMode">
+        </div>
+
+        <button id="btnToggleCam" type="button" class="btn-scan" onclick="toggleScanner()">📷 เปิดกล้องหลังสแกน</button>
+
+        <div id="scannerWrapper" class="scanner-wrapper hidden">
+          <video id="videoPreview" playsinline muted autoplay></video>
+          <div class="scan-overlay">
+            <div id="scanFrame" class="scan-frame">
+              <div class="scan-corner c-tl"></div>
+              <div class="scan-corner c-tr"></div>
+              <div class="scan-corner c-bl"></div>
+              <div class="scan-corner c-br"></div>
+              <div class="scan-laser-static"></div>
+            </div>
+            <div id="scanBadge" class="scan-hint-badge">เล็งบาร์โค้ด / QR ตรงเส้นสีแดง</div>
           </div>
-          <div id="scanBadge" class="scan-hint-badge">เล็งบาร์โค้ด / QR ตรงเส้นสีแดง</div>
         </div>
+
+        <button id="btnSearch" type="button" onclick="searchAsset()">ค้นหา / เพิ่มรหัสทรัพย์สิน</button>
+        <div id="msg"></div>
+        <div id="camErrorBox" class="err-detail hidden"></div>
       </div>
 
-      <button id="btnSearch" type="button" onclick="searchAsset()">ค้นหา / เพิ่มรหัสทรัพย์สิน</button>
-      <div id="msg"></div>
-      <div id="camErrorBox" class="err-detail hidden"></div>
-    </div>
+      <div id="resultCard" class="card hidden">
+        <h3 id="resTitle"></h3>
+        <div class="info-row"><strong>รหัส:</strong> <span id="resId"></span></div>
 
-    <div id="resultCard" class="card hidden">
-      <h3 id="resTitle"></h3>
-      <div class="info-row"><strong>รหัส:</strong> <span id="resId"></span></div>
+        <label>ชื่อทรัพย์สิน (เลือกที่เคยบันทึก หรือพิมพ์ใหม่):</label>
+        <input type="text" id="assetName" list="savedNamesList" placeholder="เช่น Notebook Dell Latitude / Monitor">
+        <datalist id="savedNamesList"></datalist>
 
-      <label>ชื่อทรัพย์สิน:</label>
-      <input type="text" id="assetName" placeholder="เช่น Notebook Dell Latitude / Monitor">
-
-      <label>สถานที่:</label>
-      <input type="text" id="assetLoc" placeholder="เช่น Office / Line 1">
-
-      <label>ผู้รับผิดชอบ:</label>
-      <input type="text" id="assetOwner" placeholder="ชื่อผู้รับผิดชอบหรือแผนก">
-
-      <label>สถานะการตรวจ:</label>
-      <select id="status">
-        <option value="ปกติ">✅ ปกติ (พบทรัพย์สิน)</option>
-        <option value="ชำรุด">⚠️ ชำรุด / รอซ่อม</option>
-        <option value="ไม่พบ">❌ ไม่พบ / สูญหาย</option>
-      </select>
-
-      <label>ผู้ตรวจ:</label>
-      <input type="text" id="checker" placeholder="ชื่อผู้ตรวจ">
-
-      <label>หมายเหตุ:</label>
-      <textarea id="note" rows="2" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)"></textarea>
-
-      <label>รูปภาพทรัพย์สิน:</label>
-      <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="handlePhotoChange(event)">
-      <img id="photoPreview" class="preview-img hidden" alt="ตัวอย่างรูปทรัพย์สิน">
-
-      <button id="btnSave" type="button" class="btn-save" onclick="saveAsset()">💾 บันทึกผลการตรวจ</button>
-    </div>
-  </div>
-
-  <!-- แท็บ 2: สรุปยอดและส่งออก -->
-  <div id="dashTab" class="hidden">
-    <div class="card">
-      <h2>📊 สรุปยอดตรวจนับ</h2>
-      <div class="stats-grid">
-        <div class="stat-box stat-total">
-          <div>ทรัพย์สินทั้งหมด</div>
-          <div id="dTotal" class="stat-num c-blue">0</div>
+        <label>สถานที่ (Location - เลือกจากรายการที่จำไว้ หรือเพิ่มใหม่):</label>
+        <div class="inline-add">
+          <select id="assetLocSelect" onchange="onLocationSelectChange()">
+            <option value="">-- เลือกสถานที่ --</option>
+          </select>
+          <button type="button" class="btn-secondary" onclick="promptAddLocation()">+ เพิ่มสถานที่</button>
         </div>
-        <div class="stat-box">
-          <div>ตรวจแล้ว</div>
-          <div id="dChecked" class="stat-num c-blue">0</div>
-        </div>
-        <div class="stat-box">
-          <div>ยังไม่ตรวจ</div>
-          <div id="dUnchecked" class="stat-num">0</div>
-        </div>
-        <div class="stat-box">
-          <div>✅ ปกติ</div>
-          <div id="dNormal" class="stat-num c-green">0</div>
-        </div>
-        <div class="stat-box">
-          <div>⚠️ ชำรุด</div>
-          <div id="dDamaged" class="stat-num c-amber">0</div>
-        </div>
-        <div class="stat-box">
-          <div>❌ ไม่พบ</div>
-          <div id="dMissing" class="stat-num c-red">0</div>
-        </div>
-      </div>
+        <input type="text" id="assetLocCustom" class="hidden" placeholder="พิมพ์ชื่อสถานที่ใหม่ (ระบบจะจำไว้ในตัวเลือกทันที)">
 
-      <div class="btn-row" style="margin-top:12px;">
-        <button type="button" class="btn-export" onclick="exportCSV()">⬇️ ดาวน์โหลด CSV</button>
-        <button type="button" class="btn-secondary" onclick="exportJSON()">⬇️ สำรองข้อมูล JSON</button>
-      </div>
-      <div class="btn-row">
-        <button type="button" class="btn-secondary" onclick="triggerImportJSON()">⬆️ นำเข้า JSON</button>
-        <button type="button" class="btn-stop" onclick="clearAllData()">🗑️ ล้างข้อมูลทั้งหมด</button>
-      </div>
-      <input type="file" id="importJsonInput" accept="application/json" class="hidden" onchange="handleImportJSON(event)">
+        <label>ผู้รับผิดชอบ (เลือกที่เคยบันทึก หรือพิมพ์ใหม่):</label>
+        <input type="text" id="assetOwner" list="savedOwnersList" placeholder="ชื่อผู้รับผิดชอบหรือแผนก">
+        <datalist id="savedOwnersList"></datalist>
 
-      <div class="mail-box">
-        <h3 style="margin-bottom:6px;">✉️ ส่งอีเมลรายงานพร้อมแนบ CSV</h3>
-        <label style="margin-top:0;">อีเมลผู้รับ:</label>
-        <input type="email" id="mailTo" placeholder="เช่น manager@company.com">
+        <label>สถานะการตรวจ:</label>
+        <select id="status">
+          <option value="ปกติ">✅ ปกติ (พบทรัพย์สิน)</option>
+          <option value="ชำรุด">⚠️ ชำรุด / รอซ่อม</option>
+          <option value="ไม่พบ">❌ ไม่พบ / สูญหาย</option>
+        </select>
 
-        <label>หัวข้ออีเมล:</label>
-        <input type="text" id="mailSubject" value="รายงานผลการตรวจนับ Fixed Assets (CSV)">
+        <label>ผู้ตรวจ (เลือกที่เคยบันทึก หรือใช้ชื่อที่ล็อกอิน):</label>
+        <input type="text" id="checker" list="savedCheckersList" placeholder="ชื่อผู้ตรวจ">
+        <datalist id="savedCheckersList"></datalist>
 
-        <button type="button" class="btn-mail" onclick="sendReportEmailWithCSV()">📤 ดาวน์โหลด CSV และเปิดแอปเมล</button>
-        <div class="helper-note">
-          เนื่องจากเบราว์เซอร์บนมือถือ/เว็บไม่อนุญาตให้สคริปต์แนบไฟล์เข้าแอปเมลโดยตรง ระบบจะสร้างและดาวน์โหลดไฟล์ <code>fixed_assets_report.csv</code> ให้ก่อน แล้วเปิดแอปอีเมลพร้อมสรุปยอดให้อัตโนมัติ จากนั้นกดแนบไฟล์ CSV ที่ดาวน์โหลดไว้ได้เลยครับ
-        </div>
+        <label>หมายเหตุ (เลือกที่เคยบันทึก หรือพิมพ์ใหม่):</label>
+        <input type="text" id="note" list="savedNotesList" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)">
+        <datalist id="savedNotesList"></datalist>
+
+        <label>รูปภาพทรัพย์สิน:</label>
+        <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="handlePhotoChange(event)">
+        <img id="photoPreview" class="preview-img hidden" alt="ตัวอย่างรูปทรัพย์สิน">
+
+        <button id="btnSave" type="button" class="btn-save" onclick="saveAsset()">💾 บันทึกผลการตรวจ</button>
       </div>
     </div>
 
-    <div class="card">
-      <h3>📋 รายการทรัพย์สินล่าสุด</h3>
-      <div id="assetList"></div>
+    <!-- แท็บ 2: สรุปยอดและส่งออก -->
+    <div id="dashTab" class="hidden">
+      <div class="card">
+        <h2>📊 สรุปยอดตรวจนับ</h2>
+        <div class="stats-grid">
+          <div class="stat-box stat-total">
+            <div>ทรัพย์สินทั้งหมด</div>
+            <div id="dTotal" class="stat-num c-blue">0</div>
+          </div>
+          <div class="stat-box">
+            <div>ตรวจแล้ว</div>
+            <div id="dChecked" class="stat-num c-blue">0</div>
+          </div>
+          <div class="stat-box">
+            <div>ยังไม่ตรวจ</div>
+            <div id="dUnchecked" class="stat-num">0</div>
+          </div>
+          <div class="stat-box">
+            <div>✅ ปกติ</div>
+            <div id="dNormal" class="stat-num c-green">0</div>
+          </div>
+          <div class="stat-box">
+            <div>⚠️ ชำรุด</div>
+            <div id="dDamaged" class="stat-num c-amber">0</div>
+          </div>
+          <div class="stat-box">
+            <div>❌ ไม่พบ</div>
+            <div id="dMissing" class="stat-num c-red">0</div>
+          </div>
+        </div>
+
+        <div class="btn-row" style="margin-top:12px;">
+          <button type="button" class="btn-export" onclick="exportCSV()">⬇️ ดาวน์โหลด CSV</button>
+          <button type="button" class="btn-secondary" onclick="exportJSON()">⬇️ สำรองข้อมูล JSON</button>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn-secondary" onclick="triggerImportJSON()">⬆️ นำเข้า JSON</button>
+          <button type="button" class="btn-stop" onclick="clearAllData()">🗑️ ล้างข้อมูลทั้งหมด</button>
+        </div>
+        <input type="file" id="importJsonInput" accept="application/json" class="hidden" onchange="handleImportJSON(event)">
+
+        <!-- ส่งไฟล์ผ่าน Bluetooth / Web Share -->
+        <div class="sub-box">
+          <h3 style="margin-bottom:6px;">📶 ส่งไฟล์ CSV ผ่าน Bluetooth</h3>
+          <button type="button" class="btn-bt" onclick="shareCSVViaBluetooth()">📡 ส่งไฟล์ CSV ผ่าน Bluetooth / แชร์ไฟล์</button>
+          <div id="btStatus"></div>
+          <div class="helper-note">
+            • บน <strong>Android (Chrome/Edge)</strong> หรือ <strong>iOS (Safari)</strong> เมื่อกดปุ่มนี้ ระบบจะสร้างไฟล์ <code>fixed_assets_report.csv</code> แล้วเปิดเมนูแชร์ของเครื่อง ให้เลือกไอคอน <strong>Bluetooth</strong> เพื่อส่งเข้าเครื่องปลายทางได้ทันที<br>
+            • หากใช้บนคอมพิวเตอร์ที่ไม่รองรับ Web Share File ระบบจะดาวน์โหลดไฟล์ CSV ให้โดยอัตโนมัติ
+          </div>
+        </div>
+
+        <!-- ส่งอีเมลพร้อมแนบ CSV -->
+        <div class="sub-box">
+          <h3 style="margin-bottom:6px;">✉️ ส่งอีเมลรายงานพร้อมแนบ CSV</h3>
+          <label style="margin-top:0;">อีเมลผู้รับ:</label>
+          <input type="email" id="mailTo" placeholder="เช่น manager@company.com">
+
+          <label>หัวข้ออีเมล:</label>
+          <input type="text" id="mailSubject" value="รายงานผลการตรวจนับ Fixed Assets (CSV)">
+
+          <button type="button" class="btn-mail" onclick="sendReportEmailWithCSV()">📤 ดาวน์โหลด CSV และเปิดแอปเมล</button>
+        </div>
+
+        <!-- ตั้งค่ารหัสผ่าน Login -->
+        <div class="sub-box">
+          <h3 style="margin-bottom:6px;">🔑 เปลี่ยนรหัสผ่านเข้าสู่ระบบ</h3>
+          <div class="inline-add">
+            <input type="password" id="newLoginPin" placeholder="ตั้งรหัสผ่านใหม่">
+            <button type="button" class="btn-secondary" onclick="changeLoginPassword()">บันทึกรหัสใหม่</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>📋 รายการทรัพย์สินล่าสุด</h3>
+        <div id="assetList"></div>
+      </div>
     </div>
   </div>
 
   <script>
     const STORAGE_KEY = 'fixed_assets_standalone_v1';
+    const LOCATIONS_KEY = 'fixed_assets_locations_v1';
+    const HISTORY_KEY = 'fixed_assets_field_history_v1';
+    const AUTH_SESSION_KEY = 'fixed_assets_auth_user_v1';
+    const AUTH_PASS_KEY = 'fixed_assets_auth_pass_v1';
+    const DEFAULT_PASS = '1234';
+
+    const DEFAULT_LOCATIONS = [
+      'Office',
+      'IT Room',
+      'Warehouse',
+      'Production Line 1',
+      'Production Line 2',
+      'Meeting Room'
+    ];
+
     let codeReader = null;
     let activeStream = null;
     let activeTrack = null;
@@ -210,6 +287,194 @@
     let currentPhotoDataUrl = '';
     let focusTimer = null;
 
+    // ==================== ระบบ Login / Logout ====================
+    function getStoredPassword() {
+      return localStorage.getItem(AUTH_PASS_KEY) || DEFAULT_PASS;
+    }
+
+    function getLoggedInUser() {
+      return localStorage.getItem(AUTH_SESSION_KEY) || '';
+    }
+
+    function handleLogin() {
+      const user = document.getElementById('loginUser').value.trim();
+      const pass = document.getElementById('loginPass').value;
+      const msgEl = document.getElementById('loginMsg');
+
+      if (!user) {
+        msgEl.style.color = '#d93025';
+        msgEl.innerText = 'กรุณากรอกชื่อผู้ใช้งานหรือรหัสพนักงาน';
+        return;
+      }
+      if (pass !== getStoredPassword()) {
+        msgEl.style.color = '#d93025';
+        msgEl.innerText = 'รหัสผ่านไม่ถูกต้อง (ค่าเริ่มต้นคือ 1234)';
+        return;
+      }
+
+      localStorage.setItem(AUTH_SESSION_KEY, user);
+      msgEl.innerText = '';
+      document.getElementById('loginPass').value = '';
+      applyAuthUI();
+    }
+
+    async function handleLogout() {
+      if (isScanning) {
+        await stopScanner();
+      }
+      localStorage.removeItem(AUTH_SESSION_KEY);
+      applyAuthUI();
+    }
+
+    function changeLoginPassword() {
+      const newPass = document.getElementById('newLoginPin').value.trim();
+      if (!newPass) {
+        alert('กรุณากรอกรหัสผ่านใหม่');
+        return;
+      }
+      localStorage.setItem(AUTH_PASS_KEY, newPass);
+      document.getElementById('newLoginPin').value = '';
+      alert('บันทึกรหัสผ่านใหม่เรียบร้อยแล้ว');
+    }
+
+    function applyAuthUI() {
+      const user = getLoggedInUser();
+      const isLoggedIn = !!user;
+      document.getElementById('loginSection').classList.toggle('hidden', isLoggedIn);
+      document.getElementById('appSection').classList.toggle('hidden', !isLoggedIn);
+
+      if (isLoggedIn) {
+        document.getElementById('currentUserBadge').innerText = user;
+        const checkerInp = document.getElementById('checker');
+        if (checkerInp && !checkerInp.value.trim()) {
+          checkerInp.value = user;
+        }
+        refreshSavedDropdowns();
+
+        const params = new URLSearchParams(window.location.search);
+        const assetParam = params.get('asset');
+        if (assetParam && assetParam.trim()) {
+          document.getElementById('searchId').value = assetParam.trim();
+          searchAsset();
+        }
+      }
+    }
+
+    // ==================== จดจำ Location และค่าที่เคยบันทึกเป็น Dropdown ====================
+    function loadSavedLocations() {
+      try {
+        const raw = localStorage.getItem(LOCATIONS_KEY);
+        const saved = raw ? JSON.parse(raw) : [];
+        const merged = Array.from(new Set([...DEFAULT_LOCATIONS, ...saved].filter(Boolean)));
+        return merged;
+      } catch (e) {
+        return [...DEFAULT_LOCATIONS];
+      }
+    }
+
+    function rememberLocation(loc) {
+      const clean = String(loc || '').trim();
+      if (!clean) return;
+      const list = loadSavedLocations();
+      if (!list.some(x => x.toLowerCase() === clean.toLowerCase())) {
+        list.push(clean);
+      }
+      localStorage.setItem(LOCATIONS_KEY, JSON.stringify(list));
+    }
+
+    function loadFieldHistory() {
+      try {
+        const raw = localStorage.getItem(HISTORY_KEY);
+        return raw ? JSON.parse(raw) : { names: [], owners: [], checkers: [], notes: [] };
+      } catch (e) {
+        return { names: [], owners: [], checkers: [], notes: [] };
+      }
+    }
+
+    function rememberFieldValues(record) {
+      rememberLocation(record.location);
+      const hist = loadFieldHistory();
+      const addUnique = (arr, val) => {
+        const v = String(val || '').trim();
+        if (!v) return;
+        if (!arr.some(x => x.toLowerCase() === v.toLowerCase())) {
+          arr.unshift(v);
+          if (arr.length > 50) arr.pop();
+        }
+      };
+      addUnique(hist.names, record.name);
+      addUnique(hist.owners, record.owner);
+      addUnique(hist.checkers, record.checker);
+      addUnique(hist.notes, record.note);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(hist));
+      refreshSavedDropdowns();
+    }
+
+    function refreshSavedDropdowns(selectedLoc = '') {
+      // อัปเดต Location Select Dropdown
+      const locSel = document.getElementById('assetLocSelect');
+      const locations = loadSavedLocations();
+      locSel.innerHTML =
+        '<option value="">-- เลือกสถานที่ (Location) --</option>' +
+        locations.map(loc => `<option value="${escapeHtml(loc)}">${escapeHtml(loc)}</option>`).join('') +
+        '<option value="__NEW__">+ พิมพ์สถานที่ใหม่...</option>';
+
+      if (selectedLoc) {
+        rememberLocation(selectedLoc);
+        const updatedLocs = loadSavedLocations();
+        locSel.innerHTML =
+          '<option value="">-- เลือกสถานที่ (Location) --</option>' +
+          updatedLocs.map(loc => `<option value="${escapeHtml(loc)}">${escapeHtml(loc)}</option>`).join('') +
+          '<option value="__NEW__">+ พิมพ์สถานที่ใหม่...</option>';
+        locSel.value = selectedLoc;
+      }
+      document.getElementById('assetLocCustom').classList.add('hidden');
+      document.getElementById('assetLocCustom').value = '';
+
+      // อัปเดต Datalist สำหรับช่องที่เคยกรอก (ชื่อทรัพย์สิน, ผู้รับผิดชอบ, ผู้ตรวจ, หมายเหตุ)
+      const hist = loadFieldHistory();
+      const fillDatalist = (id, items) => {
+        const dl = document.getElementById(id);
+        if (dl) {
+          dl.innerHTML = (items || []).map(v => `<option value="${escapeHtml(v)}"></option>`).join('');
+        }
+      };
+      fillDatalist('savedNamesList', hist.names);
+      fillDatalist('savedOwnersList', hist.owners);
+      fillDatalist('savedCheckersList', hist.checkers);
+      fillDatalist('savedNotesList', hist.notes);
+    }
+
+    function onLocationSelectChange() {
+      const sel = document.getElementById('assetLocSelect');
+      const customInp = document.getElementById('assetLocCustom');
+      if (sel.value === '__NEW__') {
+        customInp.classList.remove('hidden');
+        customInp.focus();
+      } else {
+        customInp.classList.add('hidden');
+        customInp.value = '';
+      }
+    }
+
+    function promptAddLocation() {
+      const newLoc = prompt('กรอกชื่อสถานที่ (Location) ใหม่:');
+      if (!newLoc || !newLoc.trim()) return;
+      const clean = newLoc.trim();
+      rememberLocation(clean);
+      refreshSavedDropdowns(clean);
+    }
+
+    function getSelectedLocationValue() {
+      const sel = document.getElementById('assetLocSelect');
+      const customInp = document.getElementById('assetLocCustom');
+      if (sel.value === '__NEW__') {
+        return customInp.value.trim();
+      }
+      return sel.value.trim();
+    }
+
+    // ==================== ไลบรารี ZXing & กล้อง ====================
     function ensureZxingLoaded() {
       if (typeof ZXing === 'undefined' || !ZXing.BrowserMultiFormatReader) {
         setMsg('#d93025', 'โหลดไลบรารี @zxing/library ไม่สำเร็จ');
@@ -450,13 +715,13 @@
       targetUrl.searchParams.set('asset', code);
       const win = window.open(targetUrl.toString(), '_blank', 'noopener,noreferrer');
       if (!win) {
-        // หากเบราว์เซอร์บล็อก popup ให้เปิดในหน้าปัจจุบันแทน
         window.location.href = targetUrl.toString();
       } else {
         setMsg('#188038', 'เปิดหน้าใหม่สำหรับรหัส: ' + code);
       }
     }
 
+    // ==================== จัดการฟอร์มทรัพย์สิน ====================
     function handlePhotoChange(event) {
       const file = event.target.files[0];
       if (!file) {
@@ -499,6 +764,7 @@
 
       const list = loadAssets();
       const found = list.find(item => String(item.id).toLowerCase() === id.toLowerCase());
+      const loggedUser = getLoggedInUser();
 
       document.getElementById('resId').innerText = id;
       currentPhotoDataUrl = '';
@@ -507,10 +773,10 @@
       if (found) {
         document.getElementById('resTitle').innerText = '✏️ ข้อมูลทรัพย์สิน (พบในระบบ)';
         document.getElementById('assetName').value = found.name || '';
-        document.getElementById('assetLoc').value = found.location || '';
+        refreshSavedDropdowns(found.location || '');
         document.getElementById('assetOwner').value = found.owner || '';
         document.getElementById('status').value = found.status || 'ปกติ';
-        document.getElementById('checker').value = found.checker || '';
+        document.getElementById('checker').value = found.checker || loggedUser;
         document.getElementById('note').value = found.note || '';
         if (found.photo) {
           currentPhotoDataUrl = found.photo;
@@ -524,9 +790,10 @@
       } else {
         document.getElementById('resTitle').innerText = '➕ เพิ่มและตรวจนับทรัพย์สินใหม่';
         document.getElementById('assetName').value = '';
-        document.getElementById('assetLoc').value = '';
+        refreshSavedDropdowns('');
         document.getElementById('assetOwner').value = '';
         document.getElementById('status').value = 'ปกติ';
+        document.getElementById('checker').value = loggedUser;
         document.getElementById('note').value = '';
         document.getElementById('photoPreview').classList.add('hidden');
         setMsg('#1a73e8', 'ยังไม่พบรหัส ' + id + ' — กรอกข้อมูลและกดบันทึกได้เลย');
@@ -539,14 +806,15 @@
       const id = document.getElementById('resId').innerText.trim();
       if (!id) return;
 
+      const selectedLoc = getSelectedLocationValue();
       const nowStr = new Date().toLocaleString('th-TH');
       const record = {
         id: id,
         name: document.getElementById('assetName').value.trim(),
-        location: document.getElementById('assetLoc').value.trim(),
+        location: selectedLoc,
         owner: document.getElementById('assetOwner').value.trim(),
         status: document.getElementById('status').value,
-        checker: document.getElementById('checker').value.trim() || 'Staff',
+        checker: document.getElementById('checker').value.trim() || getLoggedInUser() || 'Staff',
         note: document.getElementById('note').value.trim(),
         photo: currentPhotoDataUrl,
         lastChecked: nowStr
@@ -560,6 +828,7 @@
         list.unshift(record);
       }
       saveAssetsList(list);
+      rememberFieldValues(record);
 
       setMsg('#188038', '✅ บันทึกข้อมูล ' + id + ' เรียบร้อย (' + nowStr + ')');
       document.getElementById('resultCard').classList.add('hidden');
@@ -572,6 +841,7 @@
       }
     }
 
+    // ==================== สรุปยอด, ส่งออก CSV, Bluetooth และ Email ====================
     function renderDashboard() {
       const list = loadAssets();
       const total = list.length;
@@ -620,6 +890,40 @@
       downloadBlob(csv, 'fixed_assets_report.csv', 'text/csv;charset=utf-8;');
     }
 
+    async function shareCSVViaBluetooth() {
+      const btStatus = document.getElementById('btStatus');
+      const csv = buildCSVContent();
+      const fileName = 'fixed_assets_report.csv';
+      const file = new File([csv], fileName, { type: 'text/csv' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+        try {
+          btStatus.style.color = '#1a73e8';
+          btStatus.innerText = 'กำลังเปิดหน้าต่างแชร์ (เลือก Bluetooth เพื่อส่งไฟล์)...';
+          await navigator.share({
+            title: 'Fixed Assets Report (CSV)',
+            text: 'รายงานผลการตรวจนับ Fixed Assets',
+            files: [file]
+          });
+          btStatus.style.color = '#188038';
+          btStatus.innerText = '✅ ส่งไฟล์เรียบร้อยแล้ว';
+        } catch (err) {
+          if (err && err.name === 'AbortError') {
+            btStatus.style.color = '#5f6368';
+            btStatus.innerText = 'ยกเลิกการแชร์ไฟล์';
+          } else {
+            btStatus.style.color = '#b06000';
+            btStatus.innerText = 'เปิดหน้าแชร์ไม่สำเร็จ ระบบดาวน์โหลดไฟล์ CSV ให้แทนแล้ว';
+            exportCSV();
+          }
+        }
+      } else {
+        btStatus.style.color = '#b06000';
+        btStatus.innerText = 'เบราว์เซอร์นี้ไม่รองรับการส่งไฟล์ผ่าน Bluetooth โดยตรง ระบบดาวน์โหลดไฟล์ CSV ให้แล้ว';
+        exportCSV();
+      }
+    }
+
     function sendReportEmailWithCSV() {
       const list = loadAssets();
       const total = list.length;
@@ -627,13 +931,13 @@
       const damaged = list.filter(x => x.status === 'ชำรุด').length;
       const missing = list.filter(x => x.status === 'ไม่พบ').length;
 
-      // ดาวน์โหลดไฟล์ CSV เตรียมไว้ให้ผู้ใช้นำไปแนบในอีเมล
       exportCSV();
 
       const to = document.getElementById('mailTo').value.trim();
       const subject = document.getElementById('mailSubject').value.trim() || 'รายงานผลการตรวจนับ Fixed Assets (CSV)';
       const bodyLines = [
         'รายงานสรุปผลการตรวจนับ Fixed Assets',
+        'ผู้ส่งรายงาน: ' + (getLoggedInUser() || 'Staff'),
         'วันที่: ' + new Date().toLocaleString('th-TH'),
         '----------------------------------------',
         'ทรัพย์สินทั้งหมด: ' + total + ' รายการ',
@@ -670,6 +974,7 @@
           const parsed = JSON.parse(e.target.result);
           if (!Array.isArray(parsed)) throw new Error('Invalid JSON format');
           saveAssetsList(parsed);
+          parsed.forEach(item => rememberFieldValues(item));
           renderDashboard();
           alert('นำเข้าข้อมูลเรียบร้อยแล้ว');
         } catch (err) {
@@ -707,14 +1012,8 @@
       el.innerText = text;
     }
 
-    // หากเปิดหน้าใหม่พร้อมพารามิเตอร์ ?asset=รหัส ให้ค้นหาและแสดงฟอร์มทันที
     window.addEventListener('DOMContentLoaded', () => {
-      const params = new URLSearchParams(window.location.search);
-      const assetParam = params.get('asset');
-      if (assetParam && assetParam.trim()) {
-        document.getElementById('searchId').value = assetParam.trim();
-        searchAsset();
-      }
+      applyAuthUI();
     });
   </script>
 </body>
