@@ -28,9 +28,26 @@
     .info-row { margin: 5px 0; font-size: 14px; }
     .err-detail { background: #fce8e6; border: 1px solid #f28b82; color: #a50e0e; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-top: 8px; text-align: left; word-break: break-word; }
     .preview-img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; margin-top: 8px; border: 1px solid #dadce0; }
-    .hidden { display: none; }
-    #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-top: 8px; background: #000; }
-    #reader video { object-fit: cover !important; border-radius: 10px; }
+    .hidden { display: none !important; }
+
+    /* กรอบกล้องพร้อมเส้นเล็งสแกน */
+    .scanner-wrapper { position: relative; width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; background: #000; }
+    #reader { width: 100%; background: #000; }
+    #reader video { object-fit: cover !important; width: 100% !important; display: block; }
+    .scan-overlay { position: absolute; inset: 0; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+    .scan-frame { position: relative; width: 82%; max-width: 340px; height: 150px; border: 2px solid rgba(255, 255, 255, 0.75); border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35); overflow: hidden; }
+    .scan-corner { position: absolute; width: 22px; height: 22px; border-color: #00e676; border-style: solid; }
+    .c-tl { top: -2px; left: -2px; border-width: 4px 0 0 4px; border-top-left-radius: 12px; }
+    .c-tr { top: -2px; right: -2px; border-width: 4px 4px 0 0; border-top-right-radius: 12px; }
+    .c-bl { bottom: -2px; left: -2px; border-width: 0 0 4px 4px; border-bottom-left-radius: 12px; }
+    .c-br { bottom: -2px; right: -2px; border-width: 0 4px 4px 0; border-bottom-right-radius: 12px; }
+    .scan-laser { position: absolute; left: 6%; right: 6%; height: 2px; background: #ff1744; box-shadow: 0 0 8px #ff1744, 0 0 14px #ff5252; animation: laserMove 1.8s ease-in-out infinite; }
+    .scan-hint-badge { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.65); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+    @keyframes laserMove {
+      0%, 100% { top: 14%; }
+      50% { top: 84%; }
+    }
+
     #msg { text-align: center; font-weight: bold; margin-top: 8px; font-size: 14px; }
     .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
     .stat-box { background: #f8f9fa; border: 1px solid #e8eaed; border-radius: 10px; padding: 12px; text-align: center; }
@@ -67,17 +84,25 @@
         <input type="checkbox" id="continuousMode">
       </div>
 
-      <div id="cameraSelectBox" class="hidden">
-        <select id="cameraSelect" onchange="onCameraChange()"></select>
-      </div>
-
       <div class="btn-row">
-        <button id="btnToggleCam" type="button" class="btn-scan" onclick="toggleScanner()">📷 เปิดกล้องสแกนสด</button>
+        <button id="btnToggleCam" type="button" class="btn-scan" onclick="toggleScanner()">📷 เปิดกล้องหลังสแกน</button>
         <button id="btnPhotoScan" type="button" class="btn-secondary" onclick="triggerScanFromImage()">🖼️ สแกนจากรูป</button>
       </div>
       <input type="file" id="qrImageInput" accept="image/*" capture="environment" class="hidden" onchange="handleScanFromImage(event)">
 
-      <div id="reader" class="hidden"></div>
+      <div id="scannerWrapper" class="scanner-wrapper hidden">
+        <div id="reader"></div>
+        <div class="scan-overlay">
+          <div class="scan-frame">
+            <div class="scan-corner c-tl"></div>
+            <div class="scan-corner c-tr"></div>
+            <div class="scan-corner c-bl"></div>
+            <div class="scan-corner c-br"></div>
+            <div class="scan-laser"></div>
+          </div>
+          <div class="scan-hint-badge">วางบาร์โค้ด / QR ให้อยู่ตรงเส้นสีแดง</div>
+        </div>
+      </div>
       <div id="fileReader" class="hidden"></div>
 
       <button id="btnSearch" type="button" onclick="searchAsset()">ค้นหา / เพิ่มรหัสทรัพย์สิน</button>
@@ -172,12 +197,9 @@
     let html5QrCode = null;
     let fileQrCode = null;
     let isScanning = false;
+    let isBusy = false;
     let isHandlingScan = false;
     let currentPhotoDataUrl = '';
-
-    window.addEventListener('error', function(event) {
-      showCamError('Runtime Error', event.error || event.message || 'Unknown error');
-    });
 
     function getSupportedFormats() {
       if (typeof Html5QrcodeSupportedFormats === 'undefined') return undefined;
@@ -195,10 +217,10 @@
 
     function ensureScannerLoaded() {
       if (typeof Html5Qrcode === 'undefined') {
-        setMsg('#d93025', 'โหลดไลบรารีสแกน (html5-qrcode) ไม่สำเร็จ');
+        setMsg('#d93025', 'โหลดไลบรารีสแกนไม่สำเร็จ');
         showCamError('Library Load', {
           name: 'LibraryNotLoaded',
-          message: 'ไม่สามารถโหลด html5-qrcode จาก unpkg.com ได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือรีเฟรชหน้าเว็บ'
+          message: 'ไม่สามารถโหลด html5-qrcode ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วรีเฟรชหน้าเว็บ'
         });
         return false;
       }
@@ -218,7 +240,7 @@
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
     }
 
-    function switchTab(tab) {
+    async function switchTab(tab) {
       const isScan = tab === 'scan';
       document.getElementById('scanTab').classList.toggle('hidden', !isScan);
       document.getElementById('dashTab').classList.toggle('hidden', isScan);
@@ -226,7 +248,7 @@
       document.getElementById('tabDashBtn').classList.toggle('active', !isScan);
 
       if (!isScan && isScanning) {
-        stopScanner();
+        await stopScanner();
       }
       if (!isScan) {
         renderDashboard();
@@ -246,11 +268,11 @@
       let hint = '';
 
       if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        hint = '💡 เบราว์เซอร์จะอนุญาตกล้องสดเมื่อเปิดผ่าน <strong>HTTPS</strong> (หรือ localhost) เท่านั้น หากเปิดเป็นไฟล์ <code>file://</code> แนะนำเปิดผ่านเว็บเซิร์ฟเวอร์ HTTPS หรือใช้ปุ่ม <strong>🖼️ สแกนจากรูป</strong>';
+        hint = '💡 เบราว์เซอร์จะอนุญาตกล้องสดเมื่อเปิดผ่าน <strong>HTTPS</strong> เท่านั้น';
       } else if (errName === 'NotAllowedError') {
         hint = '💡 กรุณาอนุญาตสิทธิ์การใช้กล้องใน Safari แล้วลองใหม่อีกครั้ง';
       } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
-        hint = '💡 ไม่พบกล้องบนอุปกรณ์นี้';
+        hint = '💡 ไม่พบกล้องหลังบนอุปกรณ์นี้';
       } else if (errName === 'NotReadableError') {
         hint = '💡 กล้องถูกแอปอื่นใช้งานอยู่ ให้ปิดแอปอื่นแล้วลองใหม่';
       }
@@ -264,6 +286,7 @@
     }
 
     async function toggleScanner() {
+      if (isBusy) return;
       if (isScanning) {
         await stopScanner();
       } else {
@@ -271,112 +294,104 @@
       }
     }
 
-    async function loadCameraList() {
-      try {
-        const cameras = await Html5Qrcode.getCameras();
-        if (cameras && cameras.length > 0) {
-          const selectEl = document.getElementById('cameraSelect');
-          const prev = selectEl.value;
-          selectEl.innerHTML = '';
-          cameras.forEach((cam, idx) => {
-            const opt = document.createElement('option');
-            opt.value = cam.id;
-            opt.text = cam.label || ('กล้องตัวที่ ' + (idx + 1));
-            selectEl.appendChild(opt);
-          });
-          if (prev && cameras.some(c => c.id === prev)) {
-            selectEl.value = prev;
-          } else {
-            const backCam = cameras.find(c => /back|rear|environment|หลัง/i.test(c.label));
-            selectEl.value = backCam ? backCam.id : cameras[cameras.length - 1].id;
+    async function resetScannerInstance() {
+      if (html5QrCode) {
+        try {
+          if (html5QrCode.isScanning) {
+            await html5QrCode.stop();
           }
-          document.getElementById('cameraSelectBox').classList.remove('hidden');
-          return selectEl.value;
-        }
-      } catch (e) {}
-      return null;
-    }
-
-    async function onCameraChange() {
-      if (isScanning) {
-        await stopScanner();
-        await startScanner(document.getElementById('cameraSelect').value);
+        } catch (e) {}
+        try {
+          html5QrCode.clear();
+        } catch (e) {}
+        html5QrCode = null;
       }
+      document.getElementById('reader').innerHTML = '';
+      isScanning = false;
     }
 
-    async function startScanner(forcedCameraId) {
-      if (isScanning) return;
+    async function startScanner() {
+      if (isBusy || isScanning) return;
       clearCamError();
       if (!ensureScannerLoaded()) return;
 
-      const readerEl = document.getElementById('reader');
+      isBusy = true;
       const btnCam = document.getElementById('btnToggleCam');
-      readerEl.classList.remove('hidden');
-      isHandlingScan = false;
+      btnCam.disabled = true;
 
-      if (!html5QrCode) {
+      try {
+        await resetScannerInstance();
+
+        const wrapperEl = document.getElementById('scannerWrapper');
+        wrapperEl.classList.remove('hidden');
+        isHandlingScan = false;
+
         const cfg = { verbose: false, useBarCodeDetectorIfSupported: true };
         const formats = getSupportedFormats();
         if (formats) cfg.formatsToSupport = formats;
         html5QrCode = new Html5Qrcode('reader', cfg);
-      }
 
-      const qrboxFunction = (viewfinderWidth, viewfinderHeight) => {
-        const width = Math.min(Math.floor(viewfinderWidth * 0.85), 340);
-        const height = Math.min(Math.floor(viewfinderHeight * 0.55), 160);
-        return { width: Math.max(width, 200), height: Math.max(height, 120) };
-      };
+        const qrboxFunction = (viewfinderWidth, viewfinderHeight) => {
+          const width = Math.min(Math.floor(viewfinderWidth * 0.82), 340);
+          const height = Math.min(Math.floor(viewfinderHeight * 0.52), 150);
+          return { width: Math.max(width, 200), height: Math.max(height, 120) };
+        };
 
-      const onScanSuccess = async (decodedText) => {
-        if (isHandlingScan) return;
-        isHandlingScan = true;
-        const cleanCode = decodedText.trim();
-        document.getElementById('searchId').value = cleanCode;
-        await stopScanner();
-        searchAsset();
-      };
+        const onScanSuccess = async (decodedText) => {
+          if (isHandlingScan) return;
+          isHandlingScan = true;
+          const cleanCode = decodedText.trim();
+          document.getElementById('searchId').value = cleanCode;
+          await stopScanner();
+          searchAsset();
+        };
 
-      const selectedCamId = forcedCameraId || document.getElementById('cameraSelect').value || null;
-      const target = selectedCamId ? selectedCamId : { facingMode: 'environment' };
-
-      try {
+        // บังคับใช้กล้องหลังเท่านั้น (facingMode: environment) เพื่อหลีกเลี่ยงเลนส์ Ultra Wide หรือกล้องหน้า
         await html5QrCode.start(
-          target,
+          { facingMode: 'environment' },
           { fps: 15, qrbox: qrboxFunction, aspectRatio: 1.333334, disableFlip: true },
           onScanSuccess,
           () => {}
         );
+
         isScanning = true;
         btnCam.textContent = '⏹️ ปิดกล้องสแกน';
         btnCam.className = 'btn-stop';
-        setMsg('#5f6368', 'วาง QR Code หรือ Barcode ให้อยู่ในกรอบ...');
-        await loadCameraList();
+        setMsg('#5f6368', 'เล็งบาร์โค้ดหรือ QR Code ให้ตรงกับเส้นสีแดง...');
       } catch (err) {
-        readerEl.classList.add('hidden');
-        setMsg('#d93025', 'ไม่สามารถเปิดกล้องสดได้');
+        await resetScannerInstance();
+        document.getElementById('scannerWrapper').classList.add('hidden');
+        btnCam.textContent = '📷 เปิดกล้องหลังสแกน';
+        btnCam.className = 'btn-scan';
+        setMsg('#d93025', 'ไม่สามารถเปิดกล้องหลังได้');
         showCamError('startScanner', err);
+      } finally {
+        btnCam.disabled = false;
+        isBusy = false;
       }
     }
 
     async function stopScanner() {
-      const readerEl = document.getElementById('reader');
+      if (isBusy) return;
+      isBusy = true;
       const btnCam = document.getElementById('btnToggleCam');
-      if (html5QrCode && isScanning) {
-        try {
-          await html5QrCode.stop();
-          html5QrCode.clear();
-        } catch (e) {}
+      btnCam.disabled = true;
+
+      try {
+        await resetScannerInstance();
+        document.getElementById('scannerWrapper').classList.add('hidden');
+        btnCam.textContent = '📷 เปิดกล้องหลังสแกน';
+        btnCam.className = 'btn-scan';
+      } finally {
+        btnCam.disabled = false;
+        isBusy = false;
       }
-      isScanning = false;
-      readerEl.classList.add('hidden');
-      btnCam.textContent = '📷 เปิดกล้องสแกนสด';
-      btnCam.className = 'btn-scan';
     }
 
-    function triggerScanFromImage() {
+    async function triggerScanFromImage() {
       clearCamError();
       if (!ensureScannerLoaded()) return;
-      if (isScanning) stopScanner();
+      if (isScanning) await stopScanner();
       const input = document.getElementById('qrImageInput');
       input.value = '';
       input.click();
@@ -625,3 +640,4 @@
   </script>
 </body>
 </html>
+Analyzing
