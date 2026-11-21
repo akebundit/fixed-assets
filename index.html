@@ -30,7 +30,7 @@
     .preview-img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; margin-top: 8px; border: 1px solid #dadce0; }
     .hidden { display: none !important; }
 
-    /* กรอบกล้องพร้อมเส้นเล็งสแกนและแถบซูม/โฟกัส */
+    /* กรอบกล้องพร้อมเส้นเล็งสแกนและแถบซูม */
     .scanner-wrapper { position: relative; width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; background: #000; }
     #reader { width: 100%; background: #000; }
     #reader video { object-fit: cover !important; width: 100% !important; display: block; }
@@ -46,8 +46,7 @@
     .scan-hint-badge { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.68); color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
     .zoom-bar { position: relative; background: #1c1e21; color: #fff; padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 13px; }
     .zoom-bar input[type="range"] { flex: 1; margin: 0; padding: 0; accent-color: #00e676; height: 24px; }
-    .zoom-btn { width: auto; margin: 0; padding: 5px 10px; font-size: 12px; border-radius: 6px; background: #3c4043; }
-    .focus-btn { width: auto; margin: 0; padding: 5px 10px; font-size: 12px; border-radius: 6px; background: #007b83; }
+    .zoom-btn { width: auto; margin: 0; padding: 5px 12px; font-size: 13px; border-radius: 6px; background: #3c4043; }
     @keyframes laserMove {
       0%, 100% { top: 14%; }
       50% { top: 84%; }
@@ -68,7 +67,6 @@
     .b-green { background: #e6f4ea; color: #137333; }
     .b-amber { background: #fef7e0; color: #b06000; }
     .b-red { background: #fce8e6; color: #c5221f; }
-    .b-gray { background: #f1f3f4; color: #5f6368; }
   </style>
 </head>
 <body>
@@ -89,14 +87,10 @@
         <input type="checkbox" id="continuousMode">
       </div>
 
-      <div class="btn-row">
-        <button id="btnToggleCam" type="button" class="btn-scan" onclick="toggleScanner()">📷 เปิดกล้องหลังสแกน</button>
-        <button id="btnPhotoScan" type="button" class="btn-secondary" onclick="triggerScanFromImage()">🖼️ สแกนจากรูป</button>
-      </div>
-      <input type="file" id="qrImageInput" accept="image/*" capture="environment" class="hidden" onchange="handleScanFromImage(event)">
+      <button id="btnToggleCam" type="button" class="btn-scan" onclick="toggleScanner()">📷 เปิดกล้องหลังสแกน</button>
 
       <div id="scannerWrapper" class="scanner-wrapper hidden">
-        <div id="reader" onclick="triggerAutoFocus()"></div>
+        <div id="reader"></div>
         <div class="scan-overlay">
           <div id="scanFrame" class="scan-frame">
             <div class="scan-corner c-tl"></div>
@@ -105,17 +99,16 @@
             <div class="scan-corner c-br"></div>
             <div class="scan-laser"></div>
           </div>
-          <div id="scanBadge" class="scan-hint-badge">ตรวจจับอัตโนมัติ: เล็งบาร์โค้ด / QR ตรงเส้นแดง</div>
+          <div id="scanBadge" class="scan-hint-badge">เล็งบาร์โค้ด / QR ให้อยู่ตรงเส้นสีแดง</div>
         </div>
         <div class="zoom-bar">
-          <button id="btnFocus" type="button" class="focus-btn" onclick="triggerAutoFocus()">🎯 โฟกัส</button>
+          <span>ซูม</span>
           <button type="button" class="zoom-btn" onclick="stepZoom(-0.5)">-</button>
           <input id="zoomSlider" type="range" min="1" max="3" step="0.1" value="1" oninput="onZoomSlider(this.value)">
           <button type="button" class="zoom-btn" onclick="stepZoom(0.5)">+</button>
           <span id="zoomLabel">1.0x</span>
         </div>
       </div>
-      <div id="fileReader" class="hidden"></div>
 
       <button id="btnSearch" type="button" onclick="searchAsset()">ค้นหา / เพิ่มรหัสทรัพย์สิน</button>
       <div id="msg"></div>
@@ -207,7 +200,6 @@
   <script>
     const STORAGE_KEY = 'fixed_assets_standalone_v1';
     let html5QrCode = null;
-    let fileQrCode = null;
     let isScanning = false;
     let isBusy = false;
     let isHandlingScan = false;
@@ -309,6 +301,12 @@
       }
     }
 
+    function applyAutoFocus(track) {
+      if (!track || typeof track.applyConstraints !== 'function') return;
+      track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] })
+        .catch(() => track.applyConstraints({ focusMode: 'continuous' }).catch(() => {}));
+    }
+
     function setupCameraEnhancements() {
       activeTrack = null;
       const videoEl = document.querySelector('#reader video');
@@ -331,7 +329,7 @@
             zoomCaps.max = Math.min(caps.zoom.max || 3, 5);
             zoomCaps.step = caps.zoom.step || 0.1;
           }
-          // ขอความละเอียด HD และเปิดโหมด Continuous Focus อัตโนมัติหากอุปกรณ์รองรับ
+          // ขอความละเอียด HD และเปิดโหมด Auto Focus ต่อเนื่องอัตโนมัติ
           const trackConstraints = {
             width: { ideal: 1280 },
             height: { ideal: 720 }
@@ -339,11 +337,7 @@
           if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
             trackConstraints.focusMode = 'continuous';
           }
-          activeTrack.applyConstraints(trackConstraints).catch(() => {
-            if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
-              activeTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
-            }
-          });
+          activeTrack.applyConstraints(trackConstraints).catch(() => applyAutoFocus(activeTrack));
         } catch (e) {}
       }
 
@@ -354,13 +348,13 @@
       zoomCaps.current = Number(zoomCaps.min);
       label.innerText = zoomCaps.current.toFixed(1) + 'x';
 
-      // กระตุ้นโฟกัสอัตโนมัติเป็นระยะขณะสแกน
+      // กระตุ้น Auto Focus ต่อเนื่องอัตโนมัติทุก 1.8 วินาที
       if (focusTimer) clearInterval(focusTimer);
       focusTimer = setInterval(() => {
-        if (isScanning && !isHandlingScan) {
-          triggerAutoFocus(true);
+        if (isScanning && !isHandlingScan && activeTrack) {
+          applyAutoFocus(activeTrack);
         }
-      }, 2200);
+      }, 1800);
     }
 
     function applyZoomValue(val) {
@@ -380,23 +374,6 @@
 
     function stepZoom(delta) {
       applyZoomValue(zoomCaps.current + delta);
-    }
-
-    function triggerAutoFocus(silent) {
-      if (!activeTrack || typeof activeTrack.applyConstraints !== 'function') return;
-      const badge = document.getElementById('scanBadge');
-      if (!silent && badge) {
-        badge.innerText = '🎯 กำลังโฟกัสอัตโนมัติ...';
-      }
-      activeTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] })
-        .catch(() => activeTrack.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] }).catch(() => {}))
-        .finally(() => {
-          setTimeout(() => {
-            if (!silent && badge && isScanning) {
-              badge.innerText = 'ตรวจจับอัตโนมัติ: เล็งบาร์โค้ด / QR ตรงเส้นแดง';
-            }
-          }, 600);
-        });
     }
 
     function flashDetectedState(codeText) {
@@ -468,8 +445,7 @@
           searchAsset();
         };
 
-        // html5-qrcode กำหนดให้พารามิเตอร์ตัวแรกเป็น object ที่มี key เดียว (เช่น { facingMode: 'environment' })
-        // ส่วนความละเอียดและโฟกัสให้ปรับผ่าน videoConstraints และ applyConstraints หลังเปิดกล้อง
+        // บังคับเปิดเฉพาะกล้องหลัง (1 key object ตามมาตรฐาน html5-qrcode)
         await html5QrCode.start(
           { facingMode: 'environment' },
           {
@@ -487,7 +463,7 @@
         btnCam.textContent = '⏹️ ปิดกล้องสแกน';
         btnCam.className = 'btn-stop';
         setupCameraEnhancements();
-        setMsg('#5f6368', 'กำลังตรวจจับ Barcode / QR อัตโนมัติ — แตะที่ภาพหรือปุ่มโฟกัสได้');
+        setMsg('#5f6368', 'กำลังตรวจจับ Barcode / QR อัตโนมัติ...');
       } catch (err) {
         await resetScannerInstance();
         document.getElementById('scannerWrapper').classList.add('hidden');
@@ -515,40 +491,6 @@
       } finally {
         btnCam.disabled = false;
         isBusy = false;
-      }
-    }
-
-    async function triggerScanFromImage() {
-      clearCamError();
-      if (!ensureScannerLoaded()) return;
-      if (isScanning) await stopScanner();
-      const input = document.getElementById('qrImageInput');
-      input.value = '';
-      input.click();
-    }
-
-    async function handleScanFromImage(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      clearCamError();
-      if (!ensureScannerLoaded()) return;
-      setMsg('#5f6368', 'กำลังอ่านโค้ดจากรูปภาพ...');
-
-      if (!fileQrCode) {
-        const cfg = { verbose: false, useBarCodeDetectorIfSupported: true };
-        const formats = getSupportedFormats();
-        if (formats) cfg.formatsToSupport = formats;
-        fileQrCode = new Html5Qrcode('fileReader', cfg);
-      }
-
-      try {
-        const decodedText = await fileQrCode.scanFile(file, false);
-        document.getElementById('searchId').value = decodedText.trim();
-        setMsg('#188038', 'อ่านรหัสสำเร็จ: ' + decodedText.trim());
-        searchAsset();
-      } catch (err) {
-        setMsg('#d93025', 'ไม่พบโค้ดในรูปภาพนี้');
-        showCamError('scanFile', err);
       }
     }
 
